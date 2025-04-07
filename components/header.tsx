@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { ModeToggle } from "@/components/mode-toggle"
 import { LanguageToggle } from "@/components/language-toggle"
 import { useLanguage } from "@/hooks/use-language"
@@ -11,8 +12,17 @@ export default function Header() {
   return (
     <header className="border-b bg-white/80 backdrop-blur-sm">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        <Link href="/" className="font-bold text-xl text-primary">
-          文 To 图
+        <Link href="/" className="flex items-center gap-2 font-bold text-xl">
+          <Image 
+            src="/images/logo1.png" 
+            alt="Logo" 
+            width={32} 
+            height={32}
+            className="rounded-sm"
+          />
+          <span className="bg-gradient-to-r from-green-500 to-blue-500 bg-clip-text text-transparent">
+            文图图
+          </span>
         </Link>
         <div className="flex items-center gap-4">
           <nav className="hidden md:flex items-center gap-6">
@@ -33,4 +43,3 @@ export default function Header() {
     </header>
   )
 }
-

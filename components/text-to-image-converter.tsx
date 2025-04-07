@@ -16,10 +16,11 @@ import { storeContent, generateUniqueId, getRecentContent } from "@/lib/storage"
 
 interface TextToImageConverterProps {
   type: "cover" | "card" | "diagram"
-  description: string
+  selectedTemplate?: string
+  description?: string
 }
 
-export default function TextToImageConverter({ type, description }: TextToImageConverterProps) {
+export default function TextToImageConverter({ type, selectedTemplate, description = "" }: TextToImageConverterProps) {
   const router = useRouter()
   const [text, setText] = useState("")
   const [selectedTemplateId, setSelectedTemplateId] = useState("")
@@ -110,8 +111,6 @@ export default function TextToImageConverter({ type, description }: TextToImageC
 
   return (
     <div className="grid gap-8 max-w-2xl mx-auto">
-      <p className="text-muted-foreground">{description}</p>
-
       <div className="space-y-6">
         <div className="border border-primary rounded-xl overflow-hidden w-full">
           <div className="bg-white p-6">
@@ -176,7 +175,16 @@ export default function TextToImageConverter({ type, description }: TextToImageC
 
       <div className="space-y-8">
         <div>
-          <h2 className="text-xl font-semibold mb-4">{t("selectTemplate")}</h2>
+          <h2 className="text-2xl font-semibold mb-2">
+            {type === "cover" && "选择封面图模板"}
+            {type === "card" && "选择文字卡模板"}
+            {type === "diagram" && "选择逻辑图模板"}
+          </h2>
+          <p className="text-muted-foreground text-center mb-4">
+            {type === "cover" && "将文本精简化，适用于为长内容设计小红书、公众号封面"}
+            {type === "card" && "将文章内容提炼成简洁的文字卡片，适合分享和传播"}
+            {type === "diagram" && "将复杂逻辑可视化，帮助理解和记忆"}
+          </p>
           <TemplateCarousel type={type} selectedTemplate={selectedTemplateId} onSelectTemplate={handleTemplateSelect} />
         </div>
 
