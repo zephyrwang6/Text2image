@@ -81,7 +81,6 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
 
     setIsGenerating(true)
     setError(null)
-    setTokenCount(null)
 
     try {
       // 获取选中的模板
