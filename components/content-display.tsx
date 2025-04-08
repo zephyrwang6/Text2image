@@ -27,16 +27,15 @@ export default function ContentDisplay({ content, type }: ContentDisplayProps) {
   }, [content, type])
 
   return (
-    <Card className="overflow-hidden p-4 max-w-2xl w-full h-full">
+    <Card className="overflow-hidden p-4 max-w-3xl w-full h-full">
       <div
         className="w-full h-full overflow-auto custom-scrollbar content-wrapper"
         style={{
-          maxHeight: "600px",
-          minHeight: "400px",
+          maxHeight: "800px",
+          minHeight: "600px",
         }}
         dangerouslySetInnerHTML={{ __html: renderedContent }}
       />
     </Card>
   )
 }
-

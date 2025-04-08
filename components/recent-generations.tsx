@@ -14,31 +14,35 @@ export default function RecentGenerations({ recentGenerations, noRecentText }: R
   const router = useRouter()
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
       {recentGenerations.length > 0
         ? recentGenerations.map((item) => (
-            <Card
+            <div
               key={item.id}
-              className="aspect-[4/3] cursor-pointer hover:shadow-md overflow-hidden rounded-xl border"
+              className="cursor-pointer overflow-hidden rounded-xl bg-background"
               onClick={() => router.push(`/${item.id}`)}
             >
-              <div className="h-full w-full p-3 flex flex-col">
-                <div className="flex-1 overflow-auto custom-scrollbar">
+              <div className="flex flex-col">
+                <div 
+                  className="overflow-auto custom-scrollbar" 
+                  style={{ height: "210px" }}
+                >
                   <ContentDisplay content={item.content} type={item.type} />
                 </div>
-                <div className="mt-2 text-xs text-center text-muted-foreground truncate">
+                <div className="mt-2 text-sm text-left text-muted-foreground truncate px-2 pb-2">
                   {new Date(item.createdAt).toLocaleDateString()} - {item.templateName}
                 </div>
               </div>
-            </Card>
+            </div>
           ))
         : Array.from({ length: 2 }).map((_, i) => (
             <div
               key={i}
-              className="aspect-[4/3] bg-muted rounded-xl flex items-center justify-center text-muted-foreground border"
+              className="bg-muted rounded-xl flex items-center justify-center text-muted-foreground"
+              style={{ height: "210px" }}
             >
               <div className="text-center p-4">
-                <Image className="mx-auto h-8 w-8 text-muted-foreground/50 mb-2" />
+                <Image className="mx-auto h-12 w-12 text-muted-foreground/50 mb-3" />
                 {noRecentText}
               </div>
             </div>
@@ -46,4 +50,3 @@ export default function RecentGenerations({ recentGenerations, noRecentText }: R
     </div>
   )
 }
-

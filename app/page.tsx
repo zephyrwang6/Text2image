@@ -17,17 +17,19 @@ export default function Home() {
     <main className="container mx-auto px-4 py-12">
       <div className="flex flex-col items-center justify-center">
         <h1 className="text-4xl font-bold text-primary mb-4">文图图</h1>
-        <p className="text-lg text-muted-foreground text-center mb-10 max-w-2xl">
+        <p className="text-lg text-muted-foreground text-center mb-6 max-w-2xl">
           将文字转换为精美图片，支持封面图、文字卡和逻辑图等多种样式
         </p>
 
         <div className="w-full max-w-4xl">
           <Tabs defaultValue="cover" onValueChange={(value) => setActiveTab(value as "cover" | "card" | "diagram")}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="cover">封面图</TabsTrigger>
-              <TabsTrigger value="card">文字卡</TabsTrigger>
-              <TabsTrigger value="diagram">逻辑图</TabsTrigger>
-            </TabsList>
+            <div className="flex justify-center">
+              <TabsList className="grid w-1/2 grid-cols-3">
+                <TabsTrigger value="cover">封面图</TabsTrigger>
+                <TabsTrigger value="card">文字卡</TabsTrigger>
+                <TabsTrigger value="diagram">逻辑图</TabsTrigger>
+              </TabsList>
+            </div>
             <TabsContent value="cover">
               <TextToImageConverter type="cover" selectedTemplate={selectedTemplate} />
             </TabsContent>
@@ -43,4 +45,3 @@ export default function Home() {
     </main>
   )
 }
-

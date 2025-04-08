@@ -80,7 +80,7 @@ export default function TemplateCarousel({ type, selectedTemplate, onSelectTempl
         </Button>
       )}
 
-      <div ref={scrollContainerRef} className="flex overflow-x-auto gap-6 pb-4 scrollbar-hide" onScroll={handleScroll}>
+      <div ref={scrollContainerRef} className="flex overflow-x-auto gap-6 pb-4 pt-2 px-2 scrollbar-hide" onScroll={handleScroll}>
         {templates.map((template) => {
           const displayName = language === "zh" ? template.name : template.nameEn
           const description = language === "zh" ? template.description : template.descriptionEn
@@ -120,11 +120,13 @@ export default function TemplateCarousel({ type, selectedTemplate, onSelectTempl
           }
 
           return (
-            <div key={template.id} className="flex-shrink-0 w-[220px]" data-template-id={template.id}>
+            <div key={template.id} className="flex-shrink-0 w-[220px] p-1" data-template-id={template.id}>
               <Card
                 className={cn(
-                  "aspect-[3/4] w-full cursor-pointer transition-all hover:shadow-md overflow-hidden rounded-xl relative",
-                  selectedTemplate === template.id && "ring-2 ring-primary ring-inset",
+                  "aspect-[3/4] w-full cursor-pointer transition-all duration-300 hover:shadow-md overflow-hidden rounded-xl relative",
+                  selectedTemplate === template.id 
+                    ? "ring-2 ring-primary ring-opacity-90 shadow-lg transform scale-[1.02]" 
+                    : "hover:scale-[1.01]"
                 )}
                 onClick={() => onSelectTemplate(template.id, displayName)}
               >
@@ -145,15 +147,8 @@ export default function TemplateCarousel({ type, selectedTemplate, onSelectTempl
                 </div>
               </Card>
 
-              <div className="mt-3 flex justify-between items-center">
+              <div className="mt-3">
                 <div className="text-sm font-medium">{displayName}</div>
-                <Button
-                  size="sm"
-                  className="bg-primary hover:bg-primary/90 text-white rounded-full"
-                  onClick={() => onSelectTemplate(template.id, displayName)}
-                >
-                  {t("use")}
-                </Button>
               </div>
             </div>
           )
@@ -173,4 +168,3 @@ export default function TemplateCarousel({ type, selectedTemplate, onSelectTempl
     </div>
   )
 }
-

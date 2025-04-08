@@ -26,13 +26,13 @@ export default function Header() {
         </Link>
         <div className="flex items-center gap-4">
           <nav className="hidden md:flex items-center gap-6">
-            <Link href="#" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+            <Link href="https://v3oxu28gnc.feishu.cn/wiki/S2uWwmt5siVUp7kUycMc7f3JnC6?fromScene=spaceOverview" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
               {t("documentation")}
             </Link>
-            <Link href="#" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+            <Link href="https://chromewebstore.google.com/detail/%E6%96%87%E5%9B%BE%E5%9B%BE/ghomaakdemboehnholpnmglfandmlefg" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
               {t("downloadPlugin")}
             </Link>
-            <Link href="#" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+            <Link href="https://jike.city/pmplanet" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
               {t("about")}
             </Link>
           </nav>
