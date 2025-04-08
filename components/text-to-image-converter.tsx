@@ -1,17 +1,18 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { RefreshCw, ChevronDown, ArrowRight, Code } from "lucide-react"
+import { RefreshCw, ChevronDown, ArrowRight, Code, Loader2 } from "lucide-react"
 import TemplateCarousel from "@/components/template-carousel"
 import RecentGenerations from "@/components/recent-generations"
 import { useLanguage } from "@/hooks/use-language"
 import { getTemplateById, getTemplatesByType } from "@/lib/templates"
 import { generateAIContent } from "@/lib/api"
 import { storeContent, generateUniqueId, getRecentContent } from "@/lib/storage"
+import { calculateTokens } from "@/lib/token-calculator"
 
 interface TextToImageConverterProps {
   type: "cover" | "card" | "diagram"
@@ -28,6 +29,7 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
   const [recentGenerations, setRecentGenerations] = useState<any[]>([])
   const [tokenCount, setTokenCount] = useState<number | null>(null)
   const { language, t } = useLanguage()
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // 加载最近生成的内容
   useEffect(() => {
@@ -54,6 +56,16 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
       }
     }
   }, [selectedTemplate, language])
+
+  // 监听输入变化，计算token数量
+  useEffect(() => {
+    if (text) {
+      const count = calculateTokens(text)
+      setTokenCount(count)
+    } else {
+      setTokenCount(0)
+    }
+  }, [text])
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value)
@@ -119,22 +131,23 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
   const templates = getTemplatesByType(type)
 
   return (
-    <div className="grid gap-8 max-w-[670px] mx-auto mt-6">
+    <div className="grid gap-8 max-w-2xl mx-auto">
       <div className="space-y-6">
         <div className="border border-primary rounded-xl overflow-hidden w-full">
-          <div className="bg-white p-6">
+          <div className="bg-background p-6">
             <Textarea
+              ref={textareaRef}
               placeholder={t("textPlaceholder")}
-              className="min-h-[190px] resize-none border-0 focus:ring-0 p-0 shadow-none text-base"
+              className="min-h-[200px] resize-none border-0 focus:ring-0 p-0 shadow-none text-base bg-transparent"
               value={text}
               onChange={handleTextChange}
             />
           </div>
 
-          <div className="border-t flex items-center justify-between px-4 py-2 bg-gray-50">
+          <div className="border-t flex items-center justify-between px-4 py-2 bg-muted">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 gap-1 text-primary hover:text-primary/90">
+                <Button variant="ghost" size="sm" className="h-8 gap-1 text-muted-foreground hover:text-foreground">
                   <Code className="h-4 w-4" />
                   {selectedTemplateName}
                   <ChevronDown className="h-3 w-3 opacity-50" />
@@ -156,7 +169,11 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
             </DropdownMenu>
 
             <div className="flex items-center gap-2">
-              {tokenCount !== null && <span className="text-xs text-muted-foreground">{tokenCount} tokens</span>}
+              {tokenCount !== null && (
+                <span className="text-xs text-muted-foreground">
+                  {t("tokens")}: {tokenCount}
+                </span>
+              )}
               <Button
                 onClick={generateContent}
                 disabled={!text.trim() || isGenerating || !selectedTemplateId}
@@ -165,7 +182,7 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
               >
                 {isGenerating ? (
                   <>
-                    <RefreshCw className="h-4 w-4 animate-spin mr-1" />
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
                     {t("generating")}
                   </>
                 ) : (
@@ -179,17 +196,17 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
           </div>
         </div>
 
-        {error && <div className="p-3 bg-red-50 text-red-600 rounded-md">{error}</div>}
+        {error && <div className="p-3 bg-destructive/10 text-destructive rounded-md">{error}</div>}
       </div>
 
       <div className="space-y-8">
         <div>
-          <h2 className="text-xl font-semibold mb-2">
+          <h2 className="text-2xl font-semibold mb-2">
             {type === "cover" && "选择封面图模板"}
             {type === "card" && "选择文字卡模板"}
             {type === "diagram" && "选择逻辑图模板"}
           </h2>
-          <p className="text-muted-foreground text-left mb-4">
+          <p className="text-muted-foreground text-center mb-4">
             {type === "cover" && "将文本精简化，适用于为长内容设计小红书、公众号封面"}
             {type === "card" && "将文章内容提炼成简洁的文字卡片，适合分享和传播"}
             {type === "diagram" && "将复杂逻辑可视化，帮助理解和记忆"}

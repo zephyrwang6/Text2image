@@ -12,6 +12,302 @@ export interface Template {
 }
 
 export const templates: Template[] = [
+  // 小红书封面模板
+  {
+    id: "xiaohongshu-cover",
+    name: "小红书封面",
+    nameEn: "Xiaohongshu Cover",
+    type: "cover",
+    description: "根据用户输入的内容，生成通用型小红书风格的封面图",
+    descriptionEn: "Generate Xiaohongshu-style cover images based on user input",
+    promptZh: `;; 小红书封面
+
+;; 根据用户输入的内容，生成通用型小红书风格的封面图SVG
+
+(defun 小红书封面生成器 ()
+"你是一位精通设计和内容营销的AI助手，能够创建吸引眼球的小红书封面图"
+(擅长 . 视觉设计)
+(理解 . 准确把握用户内容的核心卖点)
+(分析 . 提炼关键信息并以视觉化方式呈现)
+(技能 . '(内容分析 标题创作 视觉元素设计 布局优化)))
+
+(defun 生成渐变背景 (主题)
+(let ((颜色映射 '((旅行 . ("#87CEEB" . "#4682B4"))
+(美食 . ("#FFB6C1" . "#FF69B4"))
+(科技 . ("#E6E6FA" . "#9370DB"))
+(时尚 . ("#FFDAB9" . "#FF8C00"))
+(默认 . ("#F0F8FF" . "#B0E0E6")))))
+(or (assoc 主题 颜色映射) (cdr (assoc '默认 颜色映射)))))
+
+(defun 小红书封面SVG (用户内容)
+"基于用户输入的内容，生成一个小红书风格的SVG封面图"
+(let* ((内容分析 (分析用户内容 用户内容))
+(主题 (判断主题 内容分析))
+(主标题 (创建主标题 内容分析))
+(副标题 (创建副标题 内容分析))
+(核心要点 (提取核心要点 内容分析))
+(视觉元素 (选择视觉元素 内容分析 主题))
+(标签 (生成标签 内容分析)))
+(SVG封面卡片 主题 主标题 副标题 核心要点 视觉元素 标签)))
+
+(defun SVG封面卡片 (主题 主标题 副标题 核心要点 视觉元素 标签)
+"把小红书封面内容输出为美观的SVG卡片"
+\`(svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800"
+;; 渐变背景
+,(应用渐变背景 (生成渐变背景 主题))
+;; 主标题
+(text x="300" y="100" font-family="Arial, sans-serif" font-size="40" fill="#ffffff" text-anchor="middle" font-weight="bold"
+,主标题)
+;; 副标题
+(text x="300" y="150" font-family="Arial, sans-serif" font-size="24" fill="#ffffff" text-anchor="middle"
+,副标题)
+;; 视觉元素
+,(插入视觉元素 视觉元素)
+;; 核心要点
+,(生成核心要点列表 核心要点)
+;; 装饰元素
+,(插入装饰元素 主题)
+;; 标签
+,(生成标签元素 标签)))
+
+(defun 应用渐变背景 (颜色对)
+\`(defs
+(linearGradient id="bg-gradient" x1="0%" y1="0%" x2="0%" y2="100%"
+(stop offset="0%" style=,(format nil "stop-color:~A;stop-opacity:1" (car 颜色对)))
+(stop offset="100%" style=,(format nil "stop-color:~A;stop-opacity:1" (cdr 颜色对)))))
+(rect width="600" height="800" fill="url(#bg-gradient)")))
+
+(defun 插入视觉元素 (视觉元素)
+\`(g
+(text x="300" y="220" font-family="Arial, sans-serif" font-size="60" fill="#ffffff" text-anchor="middle"
+,(apply #'string-append 视觉元素))))
+
+(defun 生成核心要点列表 (核心要点)
+\`(g
+,@(loop for 要点 in 核心要点
+for index from 0
+collect
+\`(g
+(rect x="50" y=,(+ 280 (* index 60)) width="500" height="50" rx="25" ry="25" fill="rgba(255,255,255,0.2)")
+(text x="80" y=,(+ 310 (* index 60)) font-family="Arial, sans-serif" font-size="20" fill="#ffffff"
+,(format nil "• ~A" 要点))))))
+
+(defun 插入装饰元素 (主题)
+(let ((装饰元素 (选择装饰元素 主题)))
+\`(g
+,@(loop for 元素 in 装饰元素
+collect (绘制装饰元素 元素)))))
+
+(defun 生成标签元素 (标签)
+\`(g
+,@(loop for 标签 in 标签
+for index from 0
+collect
+\`(g
+(rect x=,(+ 50 (* index 200)) y="700" width="150" height="40" rx="20" ry="20" fill="rgba(255,255,255,0.3)")
+(text x=,(+ 125 (* index 200)) y="725" font-family="Arial, sans-serif" font-size="18" fill="#ffffff" text-anchor="middle"
+,(format nil "#~A" 标签))))))
+
+;;; Attention: 运行规则!
+;; 1. 必须生成SVG代码
+;; 2. 接收用户输入之后，调用主函数 (小红书封面SVG 用户内容)
+;; 3. 严格按照(SVG封面卡片)函数生成SVG内容
+;; 4. 确保主标题简洁有力，不超过15个字
+;; 5. 提取5-8个核心要点，以圆角矩形列表形式呈现
+;; 6. 选择2-3个与内容相关的emoji作为视觉元素，不易过大
+;; 7. 根据内容主题选择合适的背景渐变色，和主题高度相关
+;; 8. 添加与主题相关的装饰元素
+;; 9. 生成3个相关标签，增加曝光度
+;; 10. No other comments!!`,
+    promptEn: "",
+    color: "bg-gradient-to-br from-pink-500 to-red-500",
+    previewImage: "/images/小红书封面.png"
+  },
+  // 赛博科技风模板
+  {
+    id: "cyber-tech",
+    name: "赛博科技风",
+    nameEn: "Cyber Tech Style",
+    type: "cover",
+    description: "采用赛博朋克风格的科技感设计，融合未来科技元素",
+    descriptionEn: "Cyberpunk-style design with futuristic tech elements",
+    promptZh: `# ​赛博科技风
+
+你是一个专业的封面设计师。我会为你提供一个内容，请你基于以下的SVG模板创建一个主题相关的封面设计。
+
+## 设计要求
+1. 严格保持原有的布局结构和设计元素位置不变
+2. 根据主题更新所有emoji图标和关键词文本
+3. 选择的关键词必须与主题有较强的相关性和连贯性
+4. 调整配色方案以匹配主题风格:
+- 背景渐变色(dreamGradient)
+- 主题色(所有#FF2E6C的颜色)
+- 光晕效果(glowGradient)
+- 字体颜色
+
+## 基础SVG模板代码
+请使用以下SVG代码作为模板，仅更改颜色、文本内容和emoji：
+
+\`\`\`svg
+<svg viewBox="0 0 600 800" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<!-- 增强主背景渐变 -->
+<linearGradient id="dreamGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+<stop offset="0%" style="stop-color:#000C23;stop-opacity:1" />
+<stop offset="30%" style="stop-color:#1A0B2E;stop-opacity:1" />
+<stop offset="70%" style="stop-color:#2D0B46;stop-opacity:1" />
+<stop offset="100%" style="stop-color:#3D0B5E;stop-opacity:1" />
+</linearGradient>
+<!-- 增强光晕效果 -->
+<radialGradient id="glowGradient" cx="50%" cy="50%" r="50%">
+<stop offset="0%" style="stop-color:#FF2E6C;stop-opacity:0.3" />
+<stop offset="70%" style="stop-color:#FF2E6C;stop-opacity:0.1" />
+<stop offset="100%" style="stop-color:#FF2E6C;stop-opacity:0" />
+</radialGradient>
+<!-- 增强文字发光效果 -->
+<filter id="titleGlow">
+<feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+<feMerge>
+<feMergeNode in="coloredBlur"/>
+<feMergeNode in="coloredBlur"/>
+<feMergeNode in="SourceGraphic"/>
+</feMerge>
+</filter>
+<pattern id="noiseBg" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+<rect width="100" height="100" fill="#FF2E6C" opacity="0.03">
+<animate attributeName="opacity" values="0.03;0.06;0.03" dur="3s" repeatCount="indefinite"/>
+</rect>
+</pattern>
+</defs>
+
+<!-- 背景层 -->
+<rect width="600" height="800" fill="url(#dreamGradient)"/>
+<rect width="600" height="800" fill="url(#noiseBg)" opacity="0.8"/>
+
+<!-- 中心光晕 -->
+<circle cx="300" cy="300" r="200" fill="url(#glowGradient)"/>
+
+<!-- 装饰性曲线 -->
+<g stroke="#FF2E6C" stroke-width="0.5" opacity="0.15">
+<path d="M0,200 Q300,170 600,200" />
+<path d="M0,400 Q300,370 600,400" />
+<path d="M0,600 Q300,570 600,600" />
+</g>
+
+<!-- 围绕标题的图标分布 -->
+<g opacity="0.6">
+<!-- 上方图标 -->
+<g>
+<circle cx="150" cy="100" r="15" fill="#FF2E6C" opacity="0.6"/>
+<text x="150" y="100" text-anchor="middle" dominant-baseline="middle" font-size="12">[emoji1]</text>
+<text x="150" y="80" text-anchor="middle" fill="#FF2E6C" font-size="10">[关键词1]</text>
+
+<circle cx="300" cy="80" r="15" fill="#FF2E6C" opacity="0.6"/>
+<text x="300" y="80" text-anchor="middle" dominant-baseline="middle" font-size="12">[emoji2]</text>
+<text x="300" y="60" text-anchor="middle" fill="#FF2E6C" font-size="10">[关键词2]</text>
+
+<circle cx="450" cy="100" r="15" fill="#FF2E6C" opacity="0.6"/>
+<text x="450" y="100" text-anchor="middle" dominant-baseline="middle" font-size="12">[emoji3]</text>
+<text x="450" y="80" text-anchor="middle" fill="#FF2E6C" font-size="10">[关键词3]</text>
+</g>
+
+<!-- 左侧图标 -->
+<g>
+<circle cx="80" cy="250" r="15" fill="#FF2E6C" opacity="0.6"/>
+<text x="80" y="250" text-anchor="middle" dominant-baseline="middle" font-size="12">[emoji4]</text>
+<text x="80" y="230" text-anchor="middle" fill="#FF2E6C" font-size="10">[关键词4]</text>
+
+<circle cx="60" cy="350" r="15" fill="#FF2E6C" opacity="0.6"/>
+<text x="60" y="350" text-anchor="middle" dominant-baseline="middle" font-size="12">[emoji5]</text>
+<text x="60" y="330" text-anchor="middle" fill="#FF2E6C" font-size="10">[关键词5]</text>
+</g>
+
+<!-- 右侧图标 -->
+<g>
+<circle cx="520" cy="250" r="15" fill="#FF2E6C" opacity="0.6"/>
+<text x="520" y="250" text-anchor="middle" dominant-baseline="middle" font-size="12">[emoji6]</text>
+<text x="520" y="230" text-anchor="middle" fill="#FF2E6C" font-size="10">[关键词6]</text>
+
+<circle cx="540" cy="350" r="15" fill="#FF2E6C" opacity="0.6"/>
+<text x="540" y="350" text-anchor="middle" dominant-baseline="middle" font-size="12">[emoji7]</text>
+<text x="540" y="330" text-anchor="middle" fill="#FF2E6C" font-size="10">[关键词7]</text>
+</g>
+
+<!-- 下方图标 -->
+<g>
+<circle cx="150" cy="580" r="15" fill="#FF2E6C" opacity="0.6"/>
+<text x="150" y="580" text-anchor="middle" dominant-baseline="middle" font-size="12">[emoji8]</text>
+<text x="150" y="560" text-anchor="middle" fill="#FF2E6C" font-size="10">[关键词8]</text>
+
+<circle cx="300" cy="600" r="15" fill="#FF2E6C" opacity="0.6"/>
+<text x="300" y="600" text-anchor="middle" dominant-baseline="middle" font-size="12">[emoji9]</text>
+<text x="300" y="580" text-anchor="middle" fill="#FF2E6C" font-size="10">[关键词9]</text>
+
+<circle cx="450" cy="580" r="15" fill="#FF2E6C" opacity="0.6"/>
+<text x="450" y="580" text-anchor="middle" dominant-baseline="middle" font-size="12">[emoji10]</text>
+<text x="450" y="560" text-anchor="middle" fill="#FF2E6C" font-size="10">[关键词10]</text>
+</g>
+</g>
+
+<!-- 半透明层 -->
+<rect width="600" height="800" fill="rgba(0,12,35,0.3)"/>
+
+<!-- 主标题文字层 -->
+<g filter="url(#titleGlow)">
+<text x="300" y="220" text-anchor="middle" fill="#FF2E6C" font-size="64" font-family="[主题字体]" font-weight="bold">[标题行1]</text>
+<text x="300" y="310" text-anchor="middle" fill="#FF2E6C" font-size="64" font-family="[主题字体]" font-weight="bold">[标题行2]</text>
+<text x="300" y="400" text-anchor="middle" fill="#FF2E6C" font-size="64" font-family="[主题字体]" font-weight="bold">[标题行3]</text>
+<text x="300" y="490" text-anchor="middle" fill="#FF2E6C" font-size="64" font-family="[主题字体]" font-weight="bold">[标题行4]</text>
+</g>
+
+<!-- 简化的底部标签 -->
+<g transform="translate(300, 700)" text-anchor="middle">
+<rect x="-200" y="-30" width="400" height="80" fill="none" stroke="#FF2E6C" stroke-width="1" opacity="0.3"/>
+<text x="-120" y="0" fill="#FF2E6C" font-size="16" opacity="0.8">[标签1]</text>
+<text x="0" y="0" fill="#FF2E6C" font-size="16" opacity="0.8">[标签2]</text>
+<text x="120" y="0" fill="#FF2E6C" font-size="16" opacity="0.8">[标签3]</text>
+<text x="-60" y="30" fill="#FF2E6C" font-size="16" opacity="0.8">[标签4]</text>
+<text x="60" y="30" fill="#FF2E6C" font-size="16" opacity="0.8">[标签5]</text>
+</g>
+
+<!-- 装饰性动态元素 -->
+<g>
+<circle cx="50" cy="50" r="2" fill="#FF2E6C">
+<animate attributeName="opacity" values="0.2;0.8;0.2" dur="3s" repeatCount="indefinite"/>
+</circle>
+<circle cx="550" cy="750" r="2" fill="#FF2E6C">
+<animate attributeName="opacity" values="0.2;0.8;0.2" dur="3s" repeatCount="indefinite" begin="1.5s"/>
+</circle>
+<circle cx="300" cy="50" r="2" fill="#FF2E6C">
+<animate attributeName="opacity" values="0.2;0.8;0.2" dur="3s" repeatCount="indefinite" begin="1s"/>
+</circle>
+</g>
+
+<!-- 角落装饰 -->
+<g stroke="#FF2E6C" stroke-width="1" opacity="0.6">
+<path d="M20,20 Q35,20 50,50" fill="none"/>
+<path d="M580,20 Q565,20 550,50" fill="none"/>
+<path d="M20,780 Q35,780 50,750" fill="none"/>
+<path d="M580,780 Q565,780 550,750" fill="none"/>
+</g>
+</svg>
+\`\`\`
+
+## 你的任务
+1. 分析提供的主题词
+2. 选择合适的主题配色方案
+- 主色调
+- 背景渐变色
+- 装饰元素颜色
+3. 选择符合主题的emoji和关键词
+4. 选择适合主题的字体
+5. 生成5个主题相关的标签
+
+输入内容：`,
+    promptEn: "",
+    color: "bg-gradient-to-br from-blue-900 to-purple-900",
+    previewImage: "/images/小红书封面.png"
+  },
   // 封面图模板
   {
     id: "pixel-art",

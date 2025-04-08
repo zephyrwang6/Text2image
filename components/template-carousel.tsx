@@ -88,6 +88,12 @@ export default function TemplateCarousel({ type, selectedTemplate, onSelectTempl
           // 根据模板ID或名称获取对应的图片路径
           let imagePath = ""
           switch(template.id) {
+            case "cyber-tech":
+              imagePath = "/images/赛博科技风.png"
+              break
+            case "xiaohongshu-cover":
+              imagePath = "/images/小红书封面.png"
+              break
             case "pixel-art":
               imagePath = "/images/极简主义风格.png"
               break
