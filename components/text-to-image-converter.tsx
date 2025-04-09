@@ -117,6 +117,9 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
       const recent = getRecentContent(8)
       setRecentGenerations(recent)
 
+      // 将 isGenerating 设置为 false
+      setIsGenerating(false)
+
       // 重定向到生成结果页面
       router.push(`/${contentId}`)
     } catch (error) {
@@ -198,19 +201,20 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
         {error && <div className="p-3 bg-destructive/10 text-destructive rounded-md">{error}</div>}
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-4">
         <div>
           <h2 className="text-2xl font-semibold mb-2">
             {type === "cover" && "选择封面图模板"}
             {type === "card" && "选择文字卡模板"}
             {type === "diagram" && "选择逻辑图模板"}
           </h2>
-          <p className="text-muted-foreground text-center mb-4">
+          <p className="text-muted-foreground mb-4">
             {type === "cover" && "将文本精简化，适用于为长内容设计小红书、公众号封面"}
             {type === "card" && "将文章内容提炼成简洁的文字卡片，适合分享和传播"}
             {type === "diagram" && "将复杂逻辑可视化，帮助理解和记忆"}
           </p>
           <TemplateCarousel type={type} selectedTemplate={selectedTemplateId} onSelectTemplate={handleTemplateSelect} />
+          <p className="text-xs text-muted-foreground text-center mt-4">鸣谢提示词创作者：向阳乔木、空格的键盘、橘子AI</p>
         </div>
 
         <div>

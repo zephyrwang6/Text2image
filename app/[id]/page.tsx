@@ -9,6 +9,7 @@ import { useLanguage } from "@/hooks/use-language"
 import { getContent, extractCodeContent } from "@/lib/storage"
 import ContentDisplay from "@/components/content-display"
 import Link from "next/link"
+import * as domtoimage from "dom-to-image"
 
 export default function GeneratedContentPage() {
   const params = useParams()
@@ -92,43 +93,28 @@ export default function GeneratedContentPage() {
 
         // 将canvas转换为blob
         const blob = await new Promise<Blob>((resolve) => {
-          canvas.toBlob((b) => resolve(b!), "image/png")
+          canvas.toBlob((b: Blob | null) => resolve(b!), "image/png")
         })
 
         // 复制到剪贴板
         await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
       } else {
-        // 对于HTML内容，使用html2canvas或类似库
-        // 这里是简化实现，实际应用中可能需要更复杂的处理
+        // 对于HTML内容，使用dom-to-image
         if (!contentRef.current) throw new Error("Content reference not found")
 
-        // 创建一个canvas元素
-        const canvas = document.createElement("canvas")
-        const ctx = canvas.getContext("2d")
-        if (!ctx) throw new Error("Could not get canvas context")
-
-        // 设置canvas尺寸为内容的实际尺寸
+        // 获取内容元素
         const contentElement = contentRef.current.querySelector(".content-wrapper")
-        if (!contentElement) throw new Error("Content element not found")
+        if (!contentElement || !(contentElement instanceof HTMLElement)) {
+          throw new Error("Content element not found")
+        }
 
-        // 获取内容的完整尺寸，包括溢出部分
-        const contentWidth = contentElement.scrollWidth
-        const contentHeight = contentElement.scrollHeight
-
-        canvas.width = contentWidth
-        canvas.height = contentHeight
-
-        // 绘制白色背景
-        ctx.fillStyle = "white"
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-        // 注意：这里的实现是简化的，实际应用中应该使用html2canvas等库
-        // 将内容绘制到canvas上
-        // 这里仅作为示例，实际应用中需要替换为html2canvas等库的实现
-
-        // 将canvas转换为blob
-        const blob = await new Promise<Blob>((resolve) => {
-          canvas.toBlob((b) => resolve(b!), "image/png")
+        // 使用dom-to-image将内容转换为图片
+        const blob = await domtoimage.toBlob(contentElement, {
+          quality: 1,
+          bgcolor: null,
+          style: {
+            backgroundColor: "transparent"
+          }
         })
 
         // 复制到剪贴板
@@ -268,36 +254,33 @@ export default function GeneratedContentPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="w-full max-w-3xl mx-auto">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-3">
-            <Button asChild variant="outline" size="sm" className="h-7 w-7 p-0">
-              <Link href="/">
-                <ArrowLeft className="h-3 w-3" />
-              </Link>
-            </Button>
-            <h1 className="text-xl font-bold">{content.templateName}：生成结果</h1>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={downloadImage} variant="outline" size="sm" className="flex items-center">
-              <Download className="mr-1 h-3 w-3" />
-              下载
-            </Button>
-            <Button onClick={copyShareLink} variant="outline" size="sm" className="flex items-center">
-              {isLinkCopied ? <Check className="mr-1 h-3 w-3" /> : <Share className="mr-1 h-3 w-3" />}
-              分享
-            </Button>
-          </div>
-        </div>
-
         <div className="relative mb-6" ref={contentRef}>
-          <div className="absolute top-2 right-2 z-10 flex gap-2">
-            <Button onClick={copyImageToClipboard} size="sm" className="flex items-center">
-              {isCopied ? <Check className="mr-1 h-3 w-3" /> : <Copy className="mr-1 h-3 w-3" />}
-              {isCopied ? t("copied") : t("copyImage")}
-            </Button>
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-3">
+              <Button asChild variant="outline" size="sm" className="h-7 w-7 p-0">
+                <Link href="/">
+                  <ArrowLeft className="h-3 w-3" />
+                </Link>
+              </Button>
+              <h1 className="text-xl font-bold">{content.templateName}：生成结果</h1>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={copyImageToClipboard} variant="outline" size="sm" className="flex items-center">
+                {isCopied ? <Check className="mr-1 h-3 w-3" /> : <Copy className="mr-1 h-3 w-3" />}
+                {isCopied ? t("copied") : t("copyImage")}
+              </Button>
+              <Button onClick={downloadImage} variant="outline" size="sm" className="flex items-center">
+                <Download className="mr-1 h-3 w-3" />
+                下载
+              </Button>
+              <Button onClick={copyShareLink} variant="outline" size="sm" className="flex items-center">
+                {isLinkCopied ? <Check className="mr-1 h-3 w-3" /> : <Share className="mr-1 h-3 w-3" />}
+                分享
+              </Button>
+            </div>
           </div>
           
-          <div className="border rounded-lg shadow-sm overflow-auto custom-scrollbar" style={{ height: "700px" }}>
+          <div className="overflow-auto">
             <ContentDisplay content={content.content} type={content.type} />
           </div>
         </div>

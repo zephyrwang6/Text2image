@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card } from "@/components/ui/card"
 import { extractCodeContent } from "@/lib/storage"
 
 interface ContentDisplayProps {
@@ -27,15 +26,9 @@ export default function ContentDisplay({ content, type }: ContentDisplayProps) {
   }, [content, type])
 
   return (
-    <Card className="overflow-hidden p-4 max-w-3xl w-full h-full">
-      <div
-        className="w-full h-full overflow-auto custom-scrollbar content-wrapper"
-        style={{
-          maxHeight: "800px",
-          minHeight: "600px",
-        }}
-        dangerouslySetInnerHTML={{ __html: renderedContent }}
-      />
-    </Card>
+    <div
+      className="content-wrapper"
+      dangerouslySetInnerHTML={{ __html: renderedContent }}
+    />
   )
 }

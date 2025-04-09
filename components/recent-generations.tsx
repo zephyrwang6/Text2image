@@ -24,8 +24,7 @@ export default function RecentGenerations({ recentGenerations, noRecentText }: R
             >
               <div className="flex flex-col">
                 <div 
-                  className="overflow-auto custom-scrollbar" 
-                  style={{ height: "210px" }}
+                  className="overflow-auto custom-scrollbar"
                 >
                   <ContentDisplay content={item.content} type={item.type} />
                 </div>
@@ -39,7 +38,6 @@ export default function RecentGenerations({ recentGenerations, noRecentText }: R
             <div
               key={i}
               className="bg-muted rounded-xl flex items-center justify-center text-muted-foreground"
-              style={{ height: "210px" }}
             >
               <div className="text-center p-4">
                 <Image className="mx-auto h-12 w-12 text-muted-foreground/50 mb-3" />
