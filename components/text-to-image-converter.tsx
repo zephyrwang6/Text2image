@@ -98,6 +98,109 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
         language,
       })
 
+      // 处理流式响应
+      if (response.success && response.stream) {
+        console.log("开始处理流式响应");
+        // 处理流式响应
+        const reader = response.stream.getReader();
+        let completeContent = '';
+        let decoder = new TextDecoder();
+        let chunkCounter = 0;
+        
+        // 重置token计数
+        setTokenCount(0);
+        let currentTokenCount = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            console.log("流读取完成");
+            break;
+          }
+          
+          const chunk = decoder.decode(value, { stream: true });
+          chunkCounter++;
+          console.log(`接收数据块 #${chunkCounter}:`, chunk.substring(0, 100) + (chunk.length > 100 ? '...' : ''));
+          
+          // 处理事件流格式，格式为 "data: {...}\n\n"
+          const lines = chunk.split('\n\n').filter(Boolean);
+          console.log(`数据块包含 ${lines.length} 行数据`);
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(5);
+              
+              // 检查是否是结束标记
+              if (data.trim() === '[DONE]') continue;
+              
+              try {
+                // 确保data是有效的JSON
+                if (!data.trim()) continue;
+                
+                const parsed = JSON.parse(data);
+                
+                // 更新token计数 - 尝试从多种可能的格式中获取token信息
+                if (parsed.usage) {
+                  currentTokenCount = parsed.usage.total_tokens || parsed.usage.totalTokens || 0;
+                  setTokenCount(currentTokenCount);
+                } else if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                  // 对于每个增量内容，估算token数并增加计数
+                  // 这是一个简单估算，每4个字符约为1个token
+                  const tokenIncrement = Math.ceil(parsed.choices[0].delta.content.length / 4);
+                  currentTokenCount += tokenIncrement;
+                  setTokenCount(currentTokenCount);
+                }
+                
+                if (parsed.choices && parsed.choices[0]) {
+                  // 处理增量内容更新
+                  if (parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                    completeContent += parsed.choices[0].delta.content;
+                  }
+                  // 处理完整消息内容
+                  else if (parsed.choices[0].message && parsed.choices[0].message.content) {
+                    completeContent += parsed.choices[0].message.content;
+                  }
+                }
+              } catch (e) {
+                console.error('Error parsing streaming data:', e, 'Raw data:', data);
+              }
+            }
+          }
+        }
+
+        // 检查是否成功提取到内容
+        if (!completeContent.trim()) {
+          console.error("未能从流式响应中提取到有效内容");
+          throw new Error("获取内容失败，未能从响应中提取到有效内容");
+        }
+
+        console.log("成功从流中提取内容，总长度:", completeContent.length);
+        console.log("内容预览:", completeContent.substring(0, 100) + (completeContent.length > 100 ? '...' : ''));
+        console.log("最终token计数:", currentTokenCount);
+
+        // 生成唯一ID
+        const contentId = generateUniqueId();
+
+        // 存储生成的内容
+        storeContent(contentId, completeContent, type, selectedTemplateId, selectedTemplateName, {
+          promptTokens: Math.floor(currentTokenCount * 0.3), // 估算值
+          completionTokens: Math.floor(currentTokenCount * 0.7), // 估算值
+          totalTokens: currentTokenCount
+        });
+
+        // 更新最近生成的内容
+        const recent = getRecentContent(8);
+        setRecentGenerations(recent);
+
+        // 将 isGenerating 设置为 false
+        setIsGenerating(false);
+
+        // 重定向到生成结果页面
+        router.push(`/${contentId}`);
+        return;
+      }
+
+      // 非流式响应处理
       if (!response.success || !response.content) {
         throw new Error(response.error || "Failed to generate content")
       }
@@ -172,7 +275,7 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
 
             <div className="flex items-center gap-2">
               {tokenCount !== null && (
-                <span className="text-xs text-muted-foreground">
+                <span className={`text-xs ${isGenerating ? 'text-primary animate-pulse' : 'text-muted-foreground'}`}>
                   {t("tokens")}: {tokenCount}
                 </span>
               )}
@@ -225,3 +328,4 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
     </div>
   )
 }
+
