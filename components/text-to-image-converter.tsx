@@ -116,55 +116,91 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
         let currentCompletionTokens = 0;
 
         try {
+          let receivedDone = false;  // 标记是否收到完成信号
+          
           while (true) {
             const { value, done } = await reader.read();
             if (done) break;
 
             // 解码数据
-            const chunk = decoder.decode(value);
+            const chunk = decoder.decode(value, { stream: true });  // 启用流式解码
             
             // 处理服务器发送的事件
             const events = chunk.split('\n\n').filter(Boolean);
             
             for (const event of events) {
               if (event === 'data: [DONE]') {
+                receivedDone = true;
                 continue;
               }
               
               if (event.startsWith('data: ')) {
                 try {
-                  const jsonData = JSON.parse(event.slice(5));
-                  
-                  // 获取生成的文本
-                  if (jsonData.choices?.[0]?.delta?.content) {
-                    const content = jsonData.choices[0].delta.content;
-                    completeContent += content;
+                  const jsonPart = event.slice(5);
+                  // 尝试解析JSON，处理可能的错误
+                  try {
+                    const jsonData = JSON.parse(jsonPart);
                     
-                    // 简单估算tokens：加上当前生成的内容长度
-                    // 中文字符计算为2个token，英文字符为1个token
-                    const chineseCount = (content.match(/[\u4e00-\u9fa5]/g) || []).length;
-                    const nonChineseCount = content.length - chineseCount;
-                    const estimatedTokens = chineseCount * 2 + nonChineseCount;
+                    // 获取生成的文本
+                    if (jsonData.choices?.[0]?.delta?.content) {
+                      const content = jsonData.choices[0].delta.content;
+                      completeContent += content;
+                      
+                      // 简单估算tokens：加上当前生成的内容长度
+                      // 中文字符计算为2个token，英文字符为1个token
+                      const chineseCount = (content.match(/[\u4e00-\u9fa5]/g) || []).length;
+                      const nonChineseCount = content.length - chineseCount;
+                      const estimatedTokens = chineseCount * 2 + nonChineseCount;
+                      
+                      // 累加到已生成的tokens计数中
+                      currentCompletionTokens += estimatedTokens;
+                      setGeneratingTokenCount(currentCompletionTokens);
+                    }
                     
-                    // 累加到已生成的tokens计数中
-                    currentCompletionTokens += estimatedTokens;
-                    setGeneratingTokenCount(currentCompletionTokens);
-                  }
-                  
-                  // 收集 token 使用信息
-                  if (jsonData.usage) {
-                    partialTokenUsage = jsonData.usage;
-                    // 如果API返回了精确的token计数，则使用API的计数
-                    if (jsonData.usage.completion_tokens) {
-                      currentCompletionTokens = jsonData.usage.completion_tokens;
+                    // 收集 token 使用信息
+                    if (jsonData.usage) {
+                      partialTokenUsage = jsonData.usage;
+                      // 如果API返回了精确的token计数，则使用API的计数
+                      if (jsonData.usage.completion_tokens) {
+                        currentCompletionTokens = jsonData.usage.completion_tokens;
+                        setGeneratingTokenCount(currentCompletionTokens);
+                      }
+                    }
+                  } catch (jsonError) {
+                    // JSON解析错误，可能是包含代码块或特殊字符
+                    console.warn("JSON解析错误，尝试手动提取内容:", jsonError);
+                    
+                    // 直接从原始数据中提取内容，跳过JSON解析
+                    // 查找可能的内容片段
+                    const contentMatch = jsonPart.match(/"content":\s*"([^"]*)/);
+                    if (contentMatch && contentMatch[1]) {
+                      let extractedContent = contentMatch[1];
+                      // 处理转义字符
+                      extractedContent = extractedContent.replace(/\\n/g, '\n')
+                                                        .replace(/\\"/g, '"')
+                                                        .replace(/\\\\/g, '\\');
+                      
+                      completeContent += extractedContent;
+                      
+                      // 估算token
+                      const chineseCount = (extractedContent.match(/[\u4e00-\u9fa5]/g) || []).length;
+                      const nonChineseCount = extractedContent.length - chineseCount;
+                      const estimatedTokens = chineseCount * 2 + nonChineseCount;
+                      
+                      currentCompletionTokens += estimatedTokens;
                       setGeneratingTokenCount(currentCompletionTokens);
                     }
                   }
                 } catch (e) {
-                  console.error("Error parsing JSON from stream:", e);
+                  console.error("Error processing stream event:", e);
                 }
               }
             }
+          }
+          
+          // 确认是否正常完成了生成过程
+          if (!receivedDone && completeContent.length === 0) {
+            throw new Error("Stream ended prematurely without content");
           }
         } catch (e) {
           console.error("Error reading stream:", e);
@@ -178,6 +214,8 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
         if (!completeContent) {
           throw new Error("No content received from stream")
         }
+
+        console.log("完整内容生成完毕，准备存储和跳转", completeContent.length);
 
         // 将token使用情况转换为我们的格式
         const tokenUsage = partialTokenUsage ? {
@@ -201,11 +239,13 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
         const recent = getRecentContent(8);
         setRecentGenerations(recent);
 
-        // 将 isGenerating 设置为 false
+        // 将状态重置
         setIsGenerating(false);
-
-        // 重定向到生成结果页面
-        router.push(`/${contentId}`);
+        
+        // 给一个短暂延迟，确保所有状态都已更新
+        setTimeout(() => {
+          router.push(`/${contentId}`);
+        }, 300);
       } else if (response.content) {
         // 非流式响应的处理（原有逻辑）
         // 设置token计数
@@ -226,8 +266,10 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
         // 将 isGenerating 设置为 false
         setIsGenerating(false);
 
-        // 重定向到生成结果页面
-        router.push(`/${contentId}`);
+        // 给一个短暂延迟，确保所有状态都已更新
+        setTimeout(() => {
+          router.push(`/${contentId}`);
+        }, 300);
       } else {
         throw new Error("No content received from API");
       }
