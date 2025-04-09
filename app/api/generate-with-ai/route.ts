@@ -144,7 +144,15 @@ export async function POST(request: Request) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
-            // 流结束
+            // 流结束，添加完成标记
+            const completionMsg = `data: {"finish_reason":"stop","choices":[{"finish_reason":"stop"}]}\n\n`;
+            await writer.write(textEncoder.encode(completionMsg));
+            
+            // 添加标准的完成标记
+            const doneMsg = 'data: [DONE]\n\n';
+            await writer.write(textEncoder.encode(doneMsg));
+            
+            // 关闭流
             await writer.close();
             break;
           }

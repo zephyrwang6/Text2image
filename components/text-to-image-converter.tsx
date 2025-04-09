@@ -106,6 +106,7 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
         let completeContent = '';
         let decoder = new TextDecoder();
         let chunkCounter = 0;
+        let isComplete = false;
         
         // 重置token计数
         setTokenCount(0);
@@ -115,6 +116,7 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
           const { done, value } = await reader.read();
           if (done) {
             console.log("流读取完成");
+            isComplete = true;
             break;
           }
           
@@ -131,13 +133,21 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
               const data = line.slice(5);
               
               // 检查是否是结束标记
-              if (data.trim() === '[DONE]') continue;
+              if (data.trim() === '[DONE]') {
+                isComplete = true;
+                continue;
+              }
               
               try {
                 // 确保data是有效的JSON
                 if (!data.trim()) continue;
                 
                 const parsed = JSON.parse(data);
+                
+                // 检查是否是完成标记
+                if (parsed.finish_reason === 'stop' || parsed.finish_reason === 'length') {
+                  isComplete = true;
+                }
                 
                 // 更新token计数 - 尝试从多种可能的格式中获取token信息
                 if (parsed.usage) {
@@ -168,6 +178,33 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
           }
         }
 
+        // 处理最后一个解码 - 确保所有数据都被解码
+        const finalChunk = decoder.decode();
+        if (finalChunk) {
+          console.log("处理最终数据块:", finalChunk);
+          // 处理最后可能的数据
+          const lines = finalChunk.split('\n\n').filter(Boolean);
+          for (const line of lines) {
+            if (line.startsWith('data: ') && !line.includes('[DONE]')) {
+              try {
+                const data = line.slice(5);
+                if (!data.trim()) continue;
+                
+                const parsed = JSON.parse(data);
+                if (parsed.choices && parsed.choices[0]) {
+                  if (parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                    completeContent += parsed.choices[0].delta.content;
+                  } else if (parsed.choices[0].message && parsed.choices[0].message.content) {
+                    completeContent += parsed.choices[0].message.content;
+                  }
+                }
+              } catch (e) {
+                console.error('Error parsing final chunk:', e);
+              }
+            }
+          }
+        }
+
         // 检查是否成功提取到内容
         if (!completeContent.trim()) {
           console.error("未能从流式响应中提取到有效内容");
@@ -177,6 +214,27 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
         console.log("成功从流中提取内容，总长度:", completeContent.length);
         console.log("内容预览:", completeContent.substring(0, 100) + (completeContent.length > 100 ? '...' : ''));
         console.log("最终token计数:", currentTokenCount);
+        console.log("响应是否完成:", isComplete);
+
+        // 验证内容有效性 - 检查是否包含SVG或HTML
+        const hasValidContent = completeContent.includes("<svg") || 
+                               completeContent.includes("<html") || 
+                               completeContent.includes("<body") || 
+                               completeContent.includes("<div");
+        
+        if (!hasValidContent) {
+          console.error("生成的内容不包含有效的SVG或HTML代码");
+          setError("生成内容无效，请重试或尝试不同的输入");
+          setIsGenerating(false);
+          return;
+        }
+        
+        if (!isComplete) {
+          console.error("API响应未完成，不进行跳转");
+          setError("内容生成未完成，请重试");
+          setIsGenerating(false);
+          return;
+        }
 
         // 生成唯一ID
         const contentId = generateUniqueId();
@@ -195,7 +253,8 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
         // 将 isGenerating 设置为 false
         setIsGenerating(false);
 
-        // 重定向到生成结果页面
+        // 内容已完整接收且有效，现在安全地重定向到生成结果页面
+        console.log("内容生成完成，正在跳转到预览页面...");
         router.push(`/${contentId}`);
         return;
       }
