@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { useRouter, useParams, useSearchParams } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Copy, Download, Share, ArrowLeft, Check } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -11,18 +11,8 @@ import ContentDisplay from "@/components/content-display"
 import Link from "next/link"
 import * as domtoimage from "dom-to-image"
 
-// 修复类型错误
-declare module 'dom-to-image' {
-  export function toBlob(node: HTMLElement, options?: any): Promise<Blob>;
-  export function toPng(node: HTMLElement, options?: any): Promise<string>;
-  export function toJpeg(node: HTMLElement, options?: any): Promise<string>;
-  export function toSvg(node: HTMLElement, options?: any): Promise<string>;
-}
-
 export default function GeneratedContentPage() {
   const params = useParams()
-  const searchParams = useSearchParams()
-  const debug = searchParams.get('debug') === 'true'
   const router = useRouter()
   const { toast } = useToast()
   const { t } = useLanguage()
@@ -263,102 +253,50 @@ export default function GeneratedContentPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <p>{t("loading")}...</p>
-        </div>
-      ) : error || !content ? (
-        <div className="flex flex-col items-center justify-center h-64">
-          <p className="text-red-500 mb-4">{error || t("contentNotFound")}</p>
-          <Button asChild>
-            <Link href="/">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {t("backToHome")}
-            </Link>
-          </Button>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center">
-          <div className="max-w-2xl w-full">
-            <div className="flex justify-between items-center mb-6">
-              <Button asChild variant="outline" size="sm">
+      <div className="w-full max-w-3xl mx-auto">
+        <div className="relative mb-6" ref={contentRef}>
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-3">
+              <Button asChild variant="outline" size="sm" className="h-7 w-7 p-0">
                 <Link href="/">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  {t("backToHome")}
+                  <ArrowLeft className="h-3 w-3" />
                 </Link>
               </Button>
-              
-              <div className="flex space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={copyImageToClipboard}
-                  disabled={isCopied}
-                >
-                  {isCopied ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      {t("copied")}
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="mr-2 h-4 w-4" />
-                      {t("copyImage")}
-                    </>
-                  )}
-                </Button>
-                
-                <Button variant="outline" size="sm" onClick={downloadImage}>
-                  <Download className="mr-2 h-4 w-4" />
-                  {t("download")}
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={copyShareLink}
-                  disabled={isLinkCopied}
-                >
-                  {isLinkCopied ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      {t("copied")}
-                    </>
-                  ) : (
-                    <>
-                      <Share className="mr-2 h-4 w-4" />
-                      {t("share")}
-                    </>
-                  )}
-                </Button>
-              </div>
+              <h1 className="text-xl font-bold">{content.templateName}：生成结果</h1>
             </div>
-            
-            <div
-              ref={contentRef}
-              className="mb-6 border p-4 rounded-lg shadow-inner bg-white"
-              style={{ minHeight: "400px" }}
-            >
-              <ContentDisplay content={content.content} type={content.type} debug={debug} />
-            </div>
-            
-            <div className="text-sm text-muted-foreground mb-4">
-              <p>
-                {t("generatedAt")}: {new Date(content.createdAt).toLocaleString()}
-              </p>
-              <p>
-                {t("template")}: {content.templateName}
-              </p>
-              {content.tokenUsage && (
-                <p>
-                  {t("tokens")}:{" "}
-                  {content.tokenUsage.totalTokens.toLocaleString()}
-                </p>
-              )}
+            <div className="flex gap-2">
+              <Button onClick={copyImageToClipboard} variant="outline" size="sm" className="flex items-center">
+                {isCopied ? <Check className="mr-1 h-3 w-3" /> : <Copy className="mr-1 h-3 w-3" />}
+                {isCopied ? t("copied") : t("copyImage")}
+              </Button>
+              <Button onClick={downloadImage} variant="outline" size="sm" className="flex items-center">
+                <Download className="mr-1 h-3 w-3" />
+                下载
+              </Button>
+              <Button onClick={copyShareLink} variant="outline" size="sm" className="flex items-center">
+                {isLinkCopied ? <Check className="mr-1 h-3 w-3" /> : <Share className="mr-1 h-3 w-3" />}
+                分享
+              </Button>
             </div>
           </div>
+          
+          <div className="overflow-auto">
+            <ContentDisplay content={content.content} type={content.type} />
+          </div>
         </div>
-      )}
+
+        <div className="text-sm text-muted-foreground">
+          <p>
+            {t("generatedAt")}: {new Date(content.createdAt).toLocaleString()}
+          </p>
+          {content.tokenUsage && (
+            <p className="mt-1">
+              Tokens: {content.tokenUsage.totalTokens} (Prompt: {content.tokenUsage.promptTokens}, Completion:{" "}
+              {content.tokenUsage.completionTokens})
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
