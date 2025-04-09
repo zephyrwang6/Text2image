@@ -93,6 +93,34 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
         throw new Error("Template not found")
       }
 
+      // 设置一个定时器模拟token计数增长，提供更好的用户体验
+      let simulatedTokenCount = 0;
+      const tokenSimulation = setInterval(() => {
+        // 估算当前输入可能生成的tokens总数
+        const estimatedTotal = Math.ceil(calculateTokens(text) * 1.5);
+        simulatedTokenCount += Math.floor(Math.random() * 5) + 1; // 每次增加1-5个tokens
+        
+        // 限制最大值不超过估计总数
+        const cappedCount = Math.min(simulatedTokenCount, estimatedTotal);
+        setGeneratingTokenCount(cappedCount);
+        
+        // 如果已经接近估计总数，减缓增长速度
+        if (simulatedTokenCount > estimatedTotal * 0.8) {
+          clearInterval(tokenSimulation);
+          // 继续但速度更慢
+          const slowSimulation = setInterval(() => {
+            simulatedTokenCount += 1; 
+            setGeneratingTokenCount(Math.min(simulatedTokenCount, estimatedTotal));
+          }, 500);
+          
+          // 保存新的interval ID供后续清除
+          window.sessionStorage.setItem('slowSimulationId', String(slowSimulation));
+        }
+      }, 200);
+      
+      // 保存interval ID以便在需要时清除
+      window.sessionStorage.setItem('tokenSimulationId', String(tokenSimulation));
+
       // 调用AI内容生成API
       const response = await generateAIContent({
         text,
@@ -100,6 +128,10 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
         type,
         language,
       })
+
+      // 清除token模拟计时器
+      clearInterval(Number(window.sessionStorage.getItem('tokenSimulationId')));
+      clearInterval(Number(window.sessionStorage.getItem('slowSimulationId')));
 
       if (!response.success) {
         throw new Error(response.error || "Failed to generate content")
@@ -335,17 +367,38 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
           router.push(`/${contentId}`);
         }, delayTime);
       } else if (response.content) {
-        // 非流式响应的处理（原有逻辑）
+        // 非流式响应处理 - 现在在Vercel环境中主要使用这个路径
+        console.log("收到非流式响应，内容长度:", response.content.length);
+        
+        // 检查是否包含不完整的代码块
+        const codeBlockCount = (response.content.match(/```/g) || []).length;
+        console.log("代码块标记数量:", codeBlockCount);
+        
+        // 如果存在代码块且数量为奇数，尝试修复
+        let finalContent = response.content;
+        if (codeBlockCount % 2 !== 0) {
+          console.warn("检测到不完整的代码块，尝试修复");
+          // 查找最后一个代码块开始位置
+          const lastCodeBlockStart = finalContent.lastIndexOf("```");
+          // 检查是否是完整的html代码块开始
+          if (finalContent.substring(lastCodeBlockStart, lastCodeBlockStart + 8) === "```html" && 
+              !finalContent.substring(lastCodeBlockStart).includes("```\n")) {
+            finalContent += "\n```\n";
+            console.log("自动添加了代码块结束标记");
+          }
+        }
+        
         // 设置token计数
         if (response.tokenUsage) {
           setTokenCount(response.tokenUsage.totalTokens);
+          setGeneratingTokenCount(0);  // 重置生成中的token计数
         }
 
         // 生成唯一ID
         const contentId = generateUniqueId();
 
-        // 存储生成的内容
-        storeContent(contentId, response.content, type, selectedTemplateId, selectedTemplateName, response.tokenUsage);
+        // 存储生成的内容（使用可能修复过的内容）
+        storeContent(contentId, finalContent, type, selectedTemplateId, selectedTemplateName, response.tokenUsage);
 
         // 更新最近生成的内容
         const recent = getRecentContent(8);
@@ -357,11 +410,15 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
         // 给一个短暂延迟，确保所有状态都已更新
         setTimeout(() => {
           router.push(`/${contentId}`);
-        }, 300);
+        }, 500);  // 稍微延长延迟以确保内容存储完成
       } else {
         throw new Error("No content received from API");
       }
     } catch (error) {
+      // 清除所有的模拟token计时器
+      clearInterval(Number(window.sessionStorage.getItem('tokenSimulationId')));
+      clearInterval(Number(window.sessionStorage.getItem('slowSimulationId')));
+      
       console.error("Error generating content:", error);
       setError(error instanceof Error ? error.message : "An unknown error occurred");
       setIsGenerating(false);
