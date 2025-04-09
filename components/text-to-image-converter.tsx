@@ -100,7 +100,8 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
 
       // 处理流式响应
       if (response.success && response.stream) {
-        console.log("开始处理流式响应");
+        console.log(`[${new Date().toISOString()}] 开始处理流式响应`);
+        const startTime = Date.now();
         // 处理流式响应
         const reader = response.stream.getReader();
         let completeContent = '';
@@ -111,77 +112,96 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
         // 重置token计数
         setTokenCount(0);
         let currentTokenCount = 0;
+        
+        // 设置一个监控计时器，每5秒记录一次状态
+        const monitorInterval = setInterval(() => {
+          const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+          console.log(`[${new Date().toISOString()}] 流处理状态监控: 已运行${elapsedTime}秒，接收${chunkCounter}个数据块，当前内容长度${completeContent.length}字符`);
+        }, 5000);
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            console.log("流读取完成");
-            isComplete = true;
-            break;
-          }
-          
-          const chunk = decoder.decode(value, { stream: true });
-          chunkCounter++;
-          console.log(`接收数据块 #${chunkCounter}:`, chunk.substring(0, 100) + (chunk.length > 100 ? '...' : ''));
-          
-          // 处理事件流格式，格式为 "data: {...}\n\n"
-          const lines = chunk.split('\n\n').filter(Boolean);
-          console.log(`数据块包含 ${lines.length} 行数据`);
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(5);
-              
-              // 检查是否是结束标记
-              if (data.trim() === '[DONE]') {
-                isComplete = true;
-                continue;
-              }
-              
-              try {
-                // 确保data是有效的JSON
-                if (!data.trim()) continue;
+        try {
+          while (true) {
+            const readStartTime = Date.now();
+            console.log(`[${new Date().toISOString()}] 开始读取数据块...`);
+            const { done, value } = await reader.read();
+            const readTime = Date.now() - readStartTime;
+            
+            if (done) {
+              console.log(`[${new Date().toISOString()}] 流读取完成，总用时: ${Math.floor((Date.now() - startTime) / 1000)}秒`);
+              isComplete = true;
+              break;
+            }
+            
+            const chunk = decoder.decode(value, { stream: true });
+            chunkCounter++;
+            console.log(`[${new Date().toISOString()}] 接收数据块 #${chunkCounter}: 大小 ${value.length} 字节，读取耗时 ${readTime}ms`);
+            console.log(`数据块前100个字符:`, chunk.substring(0, 100) + (chunk.length > 100 ? '...' : ''));
+            
+            // 处理事件流格式，格式为 "data: {...}\n\n"
+            const lines = chunk.split('\n\n').filter(Boolean);
+            console.log(`[${new Date().toISOString()}] 数据块包含 ${lines.length} 行数据`);
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(5);
                 
-                const parsed = JSON.parse(data);
-                
-                // 检查是否是完成标记
-                if (parsed.finish_reason === 'stop' || parsed.finish_reason === 'length') {
+                // 检查是否是结束标记
+                if (data.trim() === '[DONE]') {
                   isComplete = true;
+                  continue;
                 }
                 
-                // 更新token计数 - 尝试从多种可能的格式中获取token信息
-                if (parsed.usage) {
-                  currentTokenCount = parsed.usage.total_tokens || parsed.usage.totalTokens || 0;
-                  setTokenCount(currentTokenCount);
-                } else if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
-                  // 对于每个增量内容，估算token数并增加计数
-                  // 这是一个简单估算，每4个字符约为1个token
-                  const tokenIncrement = Math.ceil(parsed.choices[0].delta.content.length / 4);
-                  currentTokenCount += tokenIncrement;
-                  setTokenCount(currentTokenCount);
-                }
-                
-                if (parsed.choices && parsed.choices[0]) {
-                  // 处理增量内容更新
-                  if (parsed.choices[0].delta && parsed.choices[0].delta.content) {
-                    completeContent += parsed.choices[0].delta.content;
+                try {
+                  // 确保data是有效的JSON
+                  if (!data.trim()) continue;
+                  
+                  const parsed = JSON.parse(data);
+                  
+                  // 检查是否是完成标记
+                  if (parsed.finish_reason === 'stop' || parsed.finish_reason === 'length') {
+                    isComplete = true;
                   }
-                  // 处理完整消息内容
-                  else if (parsed.choices[0].message && parsed.choices[0].message.content) {
-                    completeContent += parsed.choices[0].message.content;
+                  
+                  // 更新token计数 - 尝试从多种可能的格式中获取token信息
+                  if (parsed.usage) {
+                    currentTokenCount = parsed.usage.total_tokens || parsed.usage.totalTokens || 0;
+                    setTokenCount(currentTokenCount);
+                  } else if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                    // 对于每个增量内容，估算token数并增加计数
+                    // 这是一个简单估算，每4个字符约为1个token
+                    const tokenIncrement = Math.ceil(parsed.choices[0].delta.content.length / 4);
+                    currentTokenCount += tokenIncrement;
+                    setTokenCount(currentTokenCount);
                   }
+                  
+                  if (parsed.choices && parsed.choices[0]) {
+                    // 处理增量内容更新
+                    if (parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                      completeContent += parsed.choices[0].delta.content;
+                    }
+                    // 处理完整消息内容
+                    else if (parsed.choices[0].message && parsed.choices[0].message.content) {
+                      completeContent += parsed.choices[0].message.content;
+                    }
+                  }
+                } catch (e) {
+                  console.error('Error parsing streaming data:', e, 'Raw data:', data);
                 }
-              } catch (e) {
-                console.error('Error parsing streaming data:', e, 'Raw data:', data);
               }
             }
           }
+        } catch (error: any) {
+          console.error(`[${new Date().toISOString()}] 流处理过程中发生错误:`, error);
+          setError(`读取生成内容时发生错误: ${error.message || '未知错误'}`);
+        } finally {
+          clearInterval(monitorInterval);
+          console.log(`[${new Date().toISOString()}] 流处理结束，总耗时: ${Math.floor((Date.now() - startTime) / 1000)}秒，数据块数: ${chunkCounter}，最终内容长度: ${completeContent.length}`);
         }
-
+        
         // 处理最后一个解码 - 确保所有数据都被解码
         const finalChunk = decoder.decode();
         if (finalChunk) {
-          console.log("处理最终数据块:", finalChunk);
+          console.log(`[${new Date().toISOString()}] 处理最终数据块，长度: ${finalChunk.length}`);
           // 处理最后可能的数据
           const lines = finalChunk.split('\n\n').filter(Boolean);
           for (const line of lines) {
@@ -207,30 +227,52 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
 
         // 检查是否成功提取到内容
         if (!completeContent.trim()) {
-          console.error("未能从流式响应中提取到有效内容");
+          console.error(`[${new Date().toISOString()}] 未能从流式响应中提取到有效内容`);
           throw new Error("获取内容失败，未能从响应中提取到有效内容");
         }
 
-        console.log("成功从流中提取内容，总长度:", completeContent.length);
-        console.log("内容预览:", completeContent.substring(0, 100) + (completeContent.length > 100 ? '...' : ''));
-        console.log("最终token计数:", currentTokenCount);
-        console.log("响应是否完成:", isComplete);
+        console.log(`[${new Date().toISOString()}] 成功从流中提取内容，总长度: ${completeContent.length}`);
+        console.log("内容前100个字符:", completeContent.substring(0, 100) + (completeContent.length > 100 ? '...' : ''));
+        console.log("内容末尾100个字符:", completeContent.substring(completeContent.length - 100) + (completeContent.length > 100 ? '...' : ''));
+        console.log(`[${new Date().toISOString()}] 最终token计数: ${currentTokenCount}`);
+        console.log(`[${new Date().toISOString()}] 响应是否完成: ${isComplete}`);
 
         // 验证内容有效性 - 检查是否包含SVG或HTML
         const hasValidContent = completeContent.includes("<svg") || 
                                completeContent.includes("<html") || 
                                completeContent.includes("<body") || 
                                completeContent.includes("<div");
+                               
+        if (hasValidContent) {
+          console.log(`[${new Date().toISOString()}] 检测到有效内容标签: ${
+            completeContent.includes("<svg") ? "SVG" : 
+            completeContent.includes("<html") ? "HTML" : 
+            completeContent.includes("<body") ? "BODY" : "DIV"
+          }`);
+          
+          // 记录关键标签位置
+          const svgStartIndex = completeContent.indexOf("<svg");
+          const svgEndIndex = completeContent.lastIndexOf("</svg>");
+          const htmlStartIndex = completeContent.indexOf("<html");
+          const htmlEndIndex = completeContent.lastIndexOf("</html>");
+          
+          if (svgStartIndex !== -1) {
+            console.log(`[${new Date().toISOString()}] SVG标签位置: 开始=${svgStartIndex}, 结束=${svgEndIndex}, 长度=${svgEndIndex - svgStartIndex + 6}`);
+          }
+          if (htmlStartIndex !== -1) {
+            console.log(`[${new Date().toISOString()}] HTML标签位置: 开始=${htmlStartIndex}, 结束=${htmlEndIndex}, 长度=${htmlEndIndex - htmlStartIndex + 7}`);
+          }
+        }
         
         if (!hasValidContent) {
-          console.error("生成的内容不包含有效的SVG或HTML代码");
+          console.error(`[${new Date().toISOString()}] 生成的内容不包含有效的SVG或HTML代码`);
           setError("生成内容无效，请重试或尝试不同的输入");
           setIsGenerating(false);
           return;
         }
         
         if (!isComplete) {
-          console.error("API响应未完成，不进行跳转");
+          console.error(`[${new Date().toISOString()}] API响应未完成，不进行跳转`);
           setError("内容生成未完成，请重试");
           setIsGenerating(false);
           return;

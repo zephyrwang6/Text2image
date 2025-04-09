@@ -3,11 +3,14 @@ import { getTemplateById } from "@/lib/templates"
 
 export async function POST(request: Request) {
   try {
+    console.log(`[${new Date().toISOString()}] 收到生成请求`);
+    const startTime = Date.now();
     const { text, templateId, type, language } = await request.json()
     const useStream = true; // 设置为false可以切换到非流式响应模式
 
     // Validate input
     if (!text || !templateId || !type) {
+      console.error(`[${new Date().toISOString()}] 请求参数缺失`);
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
         { status: 400 }
@@ -17,6 +20,7 @@ export async function POST(request: Request) {
     // Get the template
     const template = getTemplateById(templateId)
     if (!template) {
+      console.error(`[${new Date().toISOString()}] 找不到模板: ${templateId}`);
       return NextResponse.json(
         { success: false, error: "Template not found" },
         { status: 404 }
@@ -25,7 +29,7 @@ export async function POST(request: Request) {
 
     // Validate API key
     if (!process.env.DEEPSEEK_API_KEY) {
-      console.error("DeepSeek API key is not configured")
+      console.error(`[${new Date().toISOString()}] DeepSeek API key未配置`);
       return NextResponse.json(
         { success: false, error: "API configuration error" },
         { status: 500 }
@@ -36,7 +40,7 @@ export async function POST(request: Request) {
     const prompt = language === "zh" ? template.promptZh : template.promptEn
 
     // Log the request
-    console.log("DeepSeek API Request:", {
+    console.log(`[${new Date().toISOString()}] DeepSeek API 请求开始:`, {
       templateId,
       type,
       language,
@@ -51,7 +55,8 @@ export async function POST(request: Request) {
     ]
 
     // Call DeepSeek API
-    console.log("正在调用DeepSeek API...");
+    console.log(`[${new Date().toISOString()}] 正在调用DeepSeek API...`);
+    const apiCallStartTime = Date.now();
     const response = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
       headers: {
@@ -66,8 +71,9 @@ export async function POST(request: Request) {
         max_tokens: 2000,
       }),
     });
-
-    console.log("DeepSeek API 响应状态:", response.status);
+    const apiCallDuration = Date.now() - apiCallStartTime;
+    
+    console.log(`[${new Date().toISOString()}] DeepSeek API 响应状态: ${response.status}, 用时: ${apiCallDuration}ms`);
 
     if (!response.ok) {
       let errorMessage = `API 返回错误状态码: ${response.status}`;
@@ -139,11 +145,27 @@ export async function POST(request: Request) {
       let accumulatedTokens = 0;
       const textDecoder = new TextDecoder();
       const textEncoder = new TextEncoder();
+      let chunkCounter = 0;
+      const streamStartTime = Date.now();
+      
+      console.log(`[${new Date().toISOString()}] 开始处理API流式响应`);
       
       try {
+        // 创建一个定时器监控每30秒记录一次状态
+        const monitorInterval = setInterval(() => {
+          const elapsedTime = Math.floor((Date.now() - streamStartTime) / 1000);
+          console.log(`[${new Date().toISOString()}] 流处理状态监控: 已运行${elapsedTime}秒，接收${chunkCounter}个数据块，累计令牌数${accumulatedTokens}`);
+        }, 30000);
+        
         while (true) {
+          const chunkStartTime = Date.now();
           const { done, value } = await reader.read();
+          const readTime = Date.now() - chunkStartTime;
+          
           if (done) {
+            console.log(`[${new Date().toISOString()}] API流结束，总运行时间: ${Math.floor((Date.now() - streamStartTime) / 1000)}秒，总数据块: ${chunkCounter}`);
+            clearInterval(monitorInterval);
+            
             // 流结束，添加完成标记
             const completionMsg = `data: {"finish_reason":"stop","choices":[{"finish_reason":"stop"}]}\n\n`;
             await writer.write(textEncoder.encode(completionMsg));
@@ -154,11 +176,15 @@ export async function POST(request: Request) {
             
             // 关闭流
             await writer.close();
+            console.log(`[${new Date().toISOString()}] 成功关闭流，总处理时间: ${Math.floor((Date.now() - startTime) / 1000)}秒`);
             break;
           }
           
           // 解码数据
           const chunkText = textDecoder.decode(value, { stream: true });
+          chunkCounter++;
+          
+          console.log(`[${new Date().toISOString()}] 收到数据块 #${chunkCounter}: 大小 ${value.length} 字节，读取耗时 ${readTime}ms`);
           
           // 将数据写入新流
           await writer.write(value);
@@ -179,21 +205,22 @@ export async function POST(request: Request) {
           }
         }
       } catch (error) {
-        console.error("流处理错误:", error);
+        console.error(`[${new Date().toISOString()}] 流处理错误:`, error);
         // 尝试写入错误信息
         try {
           const errorMsg = `data: {"error": "Stream processing error"}\n\n`;
           await writer.write(textEncoder.encode(errorMsg));
           await writer.close();
         } catch (e) {
-          console.error("无法写入错误信息:", e);
+          console.error(`[${new Date().toISOString()}] 无法写入错误信息:`, e);
         }
       }
     })().catch(error => {
-      console.error("流处理过程中发生错误:", error);
+      console.error(`[${new Date().toISOString()}] 流处理过程中发生错误:`, error);
     });
 
     // 将转换后的流返回给客户端
+    console.log(`[${new Date().toISOString()}] 返回流给客户端，API处理总时间: ${Date.now() - startTime}ms`);
     return new Response(readable, {
       headers: {
         'Content-Type': 'text/event-stream',

@@ -71,16 +71,69 @@ export function generateUniqueId(): string {
 
 // 从内容中提取SVG代码
 export function extractSvgContent(content: string): string | null {
+  console.log(`[${new Date().toISOString()}] 进入extractSvgContent函数，内容长度: ${content.length}`);
+  console.log(`[${new Date().toISOString()}] 内容前100个字符: ${content.substring(0, 100)}`);
+  console.log(`[${new Date().toISOString()}] 内容末尾100个字符: ${content.substring(content.length - 100)}`);
+  
+  // 检查内容是否包含SVG标签
+  const hasSvgOpenTag = content.includes("<svg");
+  const hasSvgCloseTag = content.includes("</svg>");
+  console.log(`[${new Date().toISOString()}] 检测SVG标签: 开始标签=${hasSvgOpenTag}, 结束标签=${hasSvgCloseTag}`);
+  
+  if (hasSvgOpenTag && hasSvgCloseTag) {
+    const svgStartIndex = content.indexOf("<svg");
+    const svgEndIndex = content.lastIndexOf("</svg>") + 6; // 6 是 "</svg>" 的长度
+    console.log(`[${new Date().toISOString()}] SVG标签位置: 开始=${svgStartIndex}, 结束=${svgEndIndex}`);
+    
+    // 检查标签位置是否合理
+    if (svgStartIndex >= 0 && svgEndIndex > svgStartIndex) {
+      console.log(`[${new Date().toISOString()}] SVG内容长度应为: ${svgEndIndex - svgStartIndex}`);
+    }
+  }
+  
   // 首先尝试处理可能的 markdown 代码块
   const markdownSvgMatch = content.match(/```(?:svg)?\s*([\s\S]*?)<svg[\s\S]*?<\/svg>[\s\S]*?```/)
   if (markdownSvgMatch) {
+    console.log(`[${new Date().toISOString()}] 匹配到markdown代码块中的SVG`);
     const innerContent = markdownSvgMatch[1] + markdownSvgMatch[0].match(/<svg[\s\S]*?<\/svg>/)?.[0]
-    return innerContent.match(/<svg[\s\S]*?<\/svg>/)?.[0] || null
+    const result = innerContent.match(/<svg[\s\S]*?<\/svg>/)?.[0] || null
+    console.log(`[${new Date().toISOString()}] 从markdown中提取的SVG长度: ${result ? result.length : 0}`);
+    if (result) {
+      console.log(`[${new Date().toISOString()}] 提取内容预览: ${result.substring(0, 100)}`);
+    }
+    return result;
   }
 
   // 常规SVG提取
   const svgMatch = content.match(/<svg[\s\S]*?<\/svg>/)
-  return svgMatch ? svgMatch[0] : null
+  console.log(`[${new Date().toISOString()}] 常规SVG匹配结果: ${svgMatch ? "成功" : "失败"}`);
+  
+  if (svgMatch) {
+    console.log(`[${new Date().toISOString()}] 匹配到的SVG内容长度: ${svgMatch[0].length}`);
+    console.log(`[${new Date().toISOString()}] 匹配内容预览: ${svgMatch[0].substring(0, 100)}`);
+    
+    // 尝试使用不同的正则表达式，看是否能更好地匹配
+    if (svgMatch[0].length < 100) {
+      console.log(`[${new Date().toISOString()}] 警告: 提取的SVG内容异常短，尝试更宽松的匹配`);
+      const altMatch = content.match(/<svg[^>]*>[\s\S]*?<\/svg>/);
+      if (altMatch && altMatch[0].length > svgMatch[0].length) {
+        console.log(`[${new Date().toISOString()}] 宽松匹配SVG结果长度: ${altMatch[0].length}`);
+        return altMatch[0];
+      }
+    }
+  } else if (hasSvgOpenTag && hasSvgCloseTag) {
+    // 如果正则匹配失败但确实有SVG标签，尝试手动提取
+    console.log(`[${new Date().toISOString()}] 正则匹配失败但存在SVG标签，尝试手动提取`);
+    const svgStartIndex = content.indexOf("<svg");
+    const svgEndIndex = content.lastIndexOf("</svg>") + 6;
+    if (svgEndIndex > svgStartIndex) {
+      const manuallyExtracted = content.substring(svgStartIndex, svgEndIndex);
+      console.log(`[${new Date().toISOString()}] 手动提取SVG内容长度: ${manuallyExtracted.length}`);
+      return manuallyExtracted;
+    }
+  }
+  
+  return svgMatch ? svgMatch[0] : null;
 }
 
 // 从内容中提取HTML代码
@@ -121,25 +174,28 @@ export function extractHtmlContent(content: string): string | null {
 // 从内容中提取代码，优先提取SVG，其次是HTML
 export function extractCodeContent(content: string, type: "cover" | "card" | "diagram"): string | null {
   if (!content || typeof content !== 'string') {
-    console.error("提取内容错误: 无效内容", content);
+    console.error(`[${new Date().toISOString()}] 提取内容错误: 无效内容`, content);
     return null;
   }
   
   // 记录提取开始
-  console.log("开始提取内容，长度:", content.length);
-  console.log("内容前100个字符:", content.substring(0, 100));
+  console.log(`[${new Date().toISOString()}] 开始提取内容，长度: ${content.length}`);
+  console.log(`[${new Date().toISOString()}] 内容前100个字符: ${content.substring(0, 100)}`);
+  console.log(`[${new Date().toISOString()}] 内容末尾100个字符: ${content.substring(Math.max(0, content.length - 100))}`);
+  
+  const extractStartTime = Date.now();
   
   // 首先尝试删除任何markdown代码块的开始和结束标记，以便更好地提取内容
   let processedContent = content;
   
   // 移除可能的markdown代码块标记
   if (content.includes("```")) {
-    console.log("检测到代码块标记，处理中...");
+    console.log(`[${new Date().toISOString()}] 检测到代码块标记，处理中...`);
     
     // 替换所有的markdown代码块标记为空字符串，但保留其中的内容
     processedContent = content.replace(/```(?:svg|html)?\s*\n?/g, '')
                              .replace(/\n?```/g, '');
-    console.log("处理后内容长度:", processedContent.length);
+    console.log(`[${new Date().toISOString()}] 处理后内容长度: ${processedContent.length}, 处理耗时: ${Date.now() - extractStartTime}ms`);
   }
 
   // 尝试直接找出内容中的第一个有效SVG或HTML块
@@ -147,23 +203,31 @@ export function extractCodeContent(content: string, type: "cover" | "card" | "di
   
   if (type === "cover" || type === "diagram") {
     // 对于封面和图表，优先提取SVG
+    console.log(`[${new Date().toISOString()}] 尝试提取SVG内容...`);
+    const svgStartTime = Date.now();
     extracted = extractSvgContent(processedContent);
     if (extracted) {
-      console.log("成功提取SVG内容，长度:", extracted.length);
+      console.log(`[${new Date().toISOString()}] 成功提取SVG内容，长度: ${extracted.length}, 提取耗时: ${Date.now() - svgStartTime}ms`);
       return extracted;
+    } else {
+      console.log(`[${new Date().toISOString()}] SVG提取失败，耗时: ${Date.now() - svgStartTime}ms`);
     }
   }
 
   // 尝试提取HTML
+  console.log(`[${new Date().toISOString()}] 尝试提取HTML内容...`);
+  const htmlStartTime = Date.now();
   extracted = extractHtmlContent(processedContent);
   if (extracted) {
-    console.log("成功提取HTML内容，长度:", extracted.length);
+    console.log(`[${new Date().toISOString()}] 成功提取HTML内容，长度: ${extracted.length}, 提取耗时: ${Date.now() - htmlStartTime}ms`);
     return extracted;
+  } else {
+    console.log(`[${new Date().toISOString()}] HTML提取失败，耗时: ${Date.now() - htmlStartTime}ms`);
   }
 
   // 如果是SVG或HTML，但上面的提取失败了，尝试更宽松的匹配
   if (processedContent.includes("<svg") || processedContent.includes("<html") || processedContent.includes("<div")) {
-    console.log("使用宽松匹配提取内容");
+    console.log(`[${new Date().toISOString()}] 使用宽松匹配提取内容`);
     
     // 如果内容是以```开始的代码块，尝试更加激进地移除markdown标记
     if (processedContent.trim().startsWith("```")) {
@@ -180,24 +244,30 @@ export function extractCodeContent(content: string, type: "cover" | "card" | "di
     if (svgStartIndex !== -1) {
       const svgEndIndex = processedContent.lastIndexOf("</svg>") + 6; // 6 是 </svg> 的长度
       if (svgEndIndex > svgStartIndex) {
-        console.log("使用索引提取法提取SVG内容");
-        return processedContent.substring(svgStartIndex, svgEndIndex);
+        console.log(`[${new Date().toISOString()}] 使用索引提取法提取SVG内容，范围: ${svgStartIndex}-${svgEndIndex}`);
+        const result = processedContent.substring(svgStartIndex, svgEndIndex);
+        console.log(`[${new Date().toISOString()}] 索引提取SVG结果长度: ${result.length}`);
+        return result;
       }
     }
     
     if (htmlStartIndex !== -1) {
       const htmlEndIndex = processedContent.lastIndexOf("</html>") + 7; // 7 是 </html> 的长度
       if (htmlEndIndex > htmlStartIndex) {
-        console.log("使用索引提取法提取HTML内容");
-        return processedContent.substring(htmlStartIndex, htmlEndIndex);
+        console.log(`[${new Date().toISOString()}] 使用索引提取法提取HTML内容，范围: ${htmlStartIndex}-${htmlEndIndex}`);
+        const result = processedContent.substring(htmlStartIndex, htmlEndIndex);
+        console.log(`[${new Date().toISOString()}] 索引提取HTML结果长度: ${result.length}`);
+        return result;
       }
     }
     
     if (bodyStartIndex !== -1) {
       const bodyEndIndex = processedContent.lastIndexOf("</body>") + 7; // 7 是 </body> 的长度
       if (bodyEndIndex > bodyStartIndex) {
-        console.log("使用索引提取法提取BODY内容");
-        return processedContent.substring(bodyStartIndex, bodyEndIndex);
+        console.log(`[${new Date().toISOString()}] 使用索引提取法提取BODY内容，范围: ${bodyStartIndex}-${bodyEndIndex}`);
+        const result = processedContent.substring(bodyStartIndex, bodyEndIndex);
+        console.log(`[${new Date().toISOString()}] 索引提取BODY结果长度: ${result.length}`);
+        return result;
       }
     }
     
@@ -221,7 +291,7 @@ export function extractCodeContent(content: string, type: "cover" | "card" | "di
           currentIndex = closeTagIndex + 6;
           
           if (openTags === 0) {
-            console.log("找到匹配的div标签");
+            console.log(`[${new Date().toISOString()}] 找到匹配的div标签，范围: ${divStartIndex}-${currentIndex}`);
             foundClosingTag = true;
             break;
           }
@@ -229,23 +299,25 @@ export function extractCodeContent(content: string, type: "cover" | "card" | "di
       }
       
       if (foundClosingTag) {
-        console.log("使用索引提取法提取DIV内容");
-        return processedContent.substring(divStartIndex, currentIndex);
+        console.log(`[${new Date().toISOString()}] 使用索引提取法提取DIV内容，范围: ${divStartIndex}-${currentIndex}`);
+        const result = processedContent.substring(divStartIndex, currentIndex);
+        console.log(`[${new Date().toISOString()}] 索引提取DIV结果长度: ${result.length}`);
+        return result;
       }
     }
     
     // 如果以上方法都失败了，但我们确定内容包含SVG或HTML元素，返回整个处理后的内容
-    console.log("无法精确提取，返回整个处理后内容");
+    console.log(`[${new Date().toISOString()}] 无法精确提取，返回整个处理后内容，长度: ${processedContent.length}`);
     return processedContent;
   }
 
   // 尝试最后的努力 - 如果内容包含任何HTML标签，返回整个处理后的内容
   if (processedContent.match(/<[a-z][\s\S]*>/i)) {
-    console.log("检测到HTML标签，返回处理后内容");
+    console.log(`[${new Date().toISOString()}] 检测到HTML标签，返回处理后内容，长度: ${processedContent.length}`);
     return processedContent;
   }
 
-  console.log("无法提取内容，返回null");
+  console.log(`[${new Date().toISOString()}] 无法提取内容，返回null，总耗时: ${Date.now() - extractStartTime}ms`);
   // 如果没有找到任何代码，返回null
   return null;
 }
