@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: messages,
-        stream: false,
+        stream: true,
       }),
     })
 
@@ -76,44 +76,12 @@ export async function POST(request: Request) {
       )
     }
 
-    const data = await response.json()
-
-    // Validate response data
-    if (!data.choices?.[0]?.message?.content) {
-      console.error("Invalid response format from DeepSeek API:", data)
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid response format from AI service",
-        },
-        { status: 500 }
-      )
-    }
-
-    // Calculate token usage
-    const promptTokens = data.usage?.prompt_tokens || 0
-    const completionTokens = data.usage?.completion_tokens || 0
-    const totalTokens = data.usage?.total_tokens || 0
-
-    // Log the response
-    console.log("DeepSeek API Response:", {
-      status: response.status,
-      contentLength: data.choices[0].message.content.length,
-      tokenUsage: {
-        promptTokens,
-        completionTokens,
-        totalTokens,
-      },
-    })
-
-    // Return the AI-generated content
-    return NextResponse.json({
-      success: true,
-      content: data.choices[0].message.content,
-      tokenUsage: {
-        promptTokens,
-        completionTokens,
-        totalTokens,
+    // 将流式响应直接传递给客户端
+    return new Response(response.body, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
       },
     })
   } catch (error) {

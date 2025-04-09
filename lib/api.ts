@@ -45,6 +45,17 @@ export async function generateAIContent(data: GenerateAIContentRequest): Promise
       throw new Error(errorData.error || "Failed to generate content with AI")
     }
 
+    // 检查是否是流式响应
+    const contentType = response.headers.get('Content-Type')
+    if (contentType && contentType.includes('text/event-stream')) {
+      // 返回 response 对象供调用者处理流
+      return {
+        success: true,
+        stream: response.body,
+      }
+    }
+
+    // 非流式响应的处理保持不变
     return await response.json()
   } catch (error) {
     console.error("Error in generateAIContent:", error)

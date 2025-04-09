@@ -23,9 +23,11 @@ export const translations = {
     clear: "清空",
     sampleText: "示例文本",
     generating: "生成中...",
+    streaming: "生成中...",
     generateImage: "开始转换",
     generateContent: "开始生成",
     startConverting: "开始转换",
+    tokens: "tokens",
 
     // Image output
     generatedImage: "生成的图片",
@@ -88,9 +90,11 @@ export const translations = {
     clear: "Clear",
     sampleText: "Sample Text",
     generating: "Generating...",
+    streaming: "Generating...",
     generateImage: "Generate Image",
     generateContent: "Generate Content",
     startConverting: "Start Converting",
+    tokens: "Token count",
 
     // Image output
     generatedImage: "Generated Image",

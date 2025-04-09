@@ -25,9 +25,11 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
   const [selectedTemplateId, setSelectedTemplateId] = useState("")
   const [selectedTemplateName, setSelectedTemplateName] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [recentGenerations, setRecentGenerations] = useState<any[]>([])
   const [tokenCount, setTokenCount] = useState<number | null>(null)
+  const [generatingTokenCount, setGeneratingTokenCount] = useState<number>(0)
   const { language, t } = useLanguage()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -81,6 +83,7 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
 
     setIsGenerating(true)
     setError(null)
+    setGeneratingTokenCount(0)
 
     try {
       // 获取选中的模板
@@ -98,34 +101,140 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
         language,
       })
 
-      if (!response.success || !response.content) {
+      if (!response.success) {
         throw new Error(response.error || "Failed to generate content")
       }
 
-      // 设置token计数
-      if (response.tokenUsage) {
-        setTokenCount(response.tokenUsage.totalTokens)
+      // 处理流式响应
+      if (response.stream) {
+        setIsStreaming(true);
+        // 读取流
+        const reader = response.stream.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let completeContent = "";
+        let partialTokenUsage = null;
+        let currentCompletionTokens = 0;
+
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            // 解码数据
+            const chunk = decoder.decode(value);
+            
+            // 处理服务器发送的事件
+            const events = chunk.split('\n\n').filter(Boolean);
+            
+            for (const event of events) {
+              if (event === 'data: [DONE]') {
+                continue;
+              }
+              
+              if (event.startsWith('data: ')) {
+                try {
+                  const jsonData = JSON.parse(event.slice(5));
+                  
+                  // 获取生成的文本
+                  if (jsonData.choices?.[0]?.delta?.content) {
+                    const content = jsonData.choices[0].delta.content;
+                    completeContent += content;
+                    
+                    // 简单估算tokens：加上当前生成的内容长度
+                    // 中文字符计算为2个token，英文字符为1个token
+                    const chineseCount = (content.match(/[\u4e00-\u9fa5]/g) || []).length;
+                    const nonChineseCount = content.length - chineseCount;
+                    const estimatedTokens = chineseCount * 2 + nonChineseCount;
+                    
+                    // 累加到已生成的tokens计数中
+                    currentCompletionTokens += estimatedTokens;
+                    setGeneratingTokenCount(currentCompletionTokens);
+                  }
+                  
+                  // 收集 token 使用信息
+                  if (jsonData.usage) {
+                    partialTokenUsage = jsonData.usage;
+                    // 如果API返回了精确的token计数，则使用API的计数
+                    if (jsonData.usage.completion_tokens) {
+                      currentCompletionTokens = jsonData.usage.completion_tokens;
+                      setGeneratingTokenCount(currentCompletionTokens);
+                    }
+                  }
+                } catch (e) {
+                  console.error("Error parsing JSON from stream:", e);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Error reading stream:", e);
+          throw e;
+        } finally {
+          reader.releaseLock();
+          setIsStreaming(false);
+        }
+
+        // 流处理完毕，设置结果
+        if (!completeContent) {
+          throw new Error("No content received from stream")
+        }
+
+        // 将token使用情况转换为我们的格式
+        const tokenUsage = partialTokenUsage ? {
+          promptTokens: partialTokenUsage.prompt_tokens || 0,
+          completionTokens: partialTokenUsage.completion_tokens || 0,
+          totalTokens: partialTokenUsage.total_tokens || 0
+        } : undefined;
+
+        // 设置token计数
+        if (tokenUsage) {
+          setTokenCount(tokenUsage.totalTokens);
+        }
+
+        // 生成唯一ID
+        const contentId = generateUniqueId();
+
+        // 存储生成的内容
+        storeContent(contentId, completeContent, type, selectedTemplateId, selectedTemplateName, tokenUsage);
+
+        // 更新最近生成的内容
+        const recent = getRecentContent(8);
+        setRecentGenerations(recent);
+
+        // 将 isGenerating 设置为 false
+        setIsGenerating(false);
+
+        // 重定向到生成结果页面
+        router.push(`/${contentId}`);
+      } else if (response.content) {
+        // 非流式响应的处理（原有逻辑）
+        // 设置token计数
+        if (response.tokenUsage) {
+          setTokenCount(response.tokenUsage.totalTokens);
+        }
+
+        // 生成唯一ID
+        const contentId = generateUniqueId();
+
+        // 存储生成的内容
+        storeContent(contentId, response.content, type, selectedTemplateId, selectedTemplateName, response.tokenUsage);
+
+        // 更新最近生成的内容
+        const recent = getRecentContent(8);
+        setRecentGenerations(recent);
+
+        // 将 isGenerating 设置为 false
+        setIsGenerating(false);
+
+        // 重定向到生成结果页面
+        router.push(`/${contentId}`);
+      } else {
+        throw new Error("No content received from API");
       }
-
-      // 生成唯一ID
-      const contentId = generateUniqueId()
-
-      // 存储生成的内容
-      storeContent(contentId, response.content, type, selectedTemplateId, selectedTemplateName, response.tokenUsage)
-
-      // 更新最近生成的内容
-      const recent = getRecentContent(8)
-      setRecentGenerations(recent)
-
-      // 将 isGenerating 设置为 false
-      setIsGenerating(false)
-
-      // 重定向到生成结果页面
-      router.push(`/${contentId}`)
     } catch (error) {
-      console.error("Error generating content:", error)
-      setError(error instanceof Error ? error.message : "An unknown error occurred")
-      setIsGenerating(false)
+      console.error("Error generating content:", error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      setIsGenerating(false);
     }
   }
 
@@ -171,7 +280,11 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
             </DropdownMenu>
 
             <div className="flex items-center gap-2">
-              {tokenCount !== null && (
+              {(isStreaming || isGenerating) && generatingTokenCount > 0 ? (
+                <span className="text-xs text-muted-foreground">
+                  {t("tokens")}: {generatingTokenCount}
+                </span>
+              ) : tokenCount !== null && (
                 <span className="text-xs text-muted-foreground">
                   {t("tokens")}: {tokenCount}
                 </span>
@@ -185,7 +298,7 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
                 {isGenerating ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                    {t("generating")}
+                    {isStreaming ? t("streaming") : t("generating")}
                   </>
                 ) : (
                   <>

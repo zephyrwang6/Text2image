@@ -61,6 +61,7 @@ export interface GenerateAIContentRequest {
 export interface GenerateAIContentResponse {
   success: boolean
   content?: string
+  stream?: ReadableStream<Uint8Array> | null
   metadata?: {
     id: string
     generatedAt: string
