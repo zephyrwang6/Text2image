@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import { NextResponse } from "next/server"
 import { getTemplateById } from "@/lib/templates"
 
@@ -205,4 +207,3 @@ export async function POST(request: Request) {
     )
   }
 }
-
