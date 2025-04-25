@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { RefreshCw, ChevronDown, ArrowRight, Code, Loader2 } from "lucide-react"
+import { RefreshCw, ChevronDown, ArrowRight, Code, Loader2, ChevronRight } from "lucide-react"
 import TemplateCarousel from "@/components/template-carousel"
 import RecentGenerations from "@/components/recent-generations"
 import { useLanguage } from "@/hooks/use-language"
@@ -17,11 +17,14 @@ import { calculateTokens } from "@/lib/token-calculator"
 interface TextToImageConverterProps {
   type: "cover" | "card" | "diagram"
   selectedTemplate?: string
+  sharedText?: string
+  setSharedText?: React.Dispatch<React.SetStateAction<string>>
+  onTypeChange?: (newType: "cover" | "card" | "diagram") => void
 }
 
-export default function TextToImageConverter({ type, selectedTemplate }: TextToImageConverterProps) {
+export default function TextToImageConverter({ type, selectedTemplate, sharedText, setSharedText, onTypeChange }: TextToImageConverterProps) {
   const router = useRouter()
-  const [text, setText] = useState("")
+  const [text, setText] = useState(sharedText || "")
   const [selectedTemplateId, setSelectedTemplateId] = useState("")
   const [selectedTemplateName, setSelectedTemplateName] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
@@ -30,6 +33,13 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
   const [tokenCount, setTokenCount] = useState<number | null>(null)
   const { language, t } = useLanguage()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // 使用共享文本
+  useEffect(() => {
+    if (sharedText !== undefined) {
+      setText(sharedText)
+    }
+  }, [sharedText])
 
   // 加载最近生成的内容
   useEffect(() => {
@@ -68,7 +78,12 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
   }, [text])
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value)
+    const newText = e.target.value
+    setText(newText)
+    // 更新共享文本状态
+    if (setSharedText) {
+      setSharedText(newText)
+    }
   }
 
   const handleTemplateSelect = (templateId: string, templateName: string) => {
@@ -235,30 +250,44 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
   // 获取当前类型的所有模板
   const templates = getTemplatesByType(type)
 
+  // 获取下一个类型
+  const getNextType = (): "cover" | "card" | "diagram" => {
+    if (type === "cover") return "card"
+    if (type === "card") return "diagram"
+    return "cover"
+  }
+
+  // 处理类型切换
+  const handleTypeChange = () => {
+    if (onTypeChange) {
+      onTypeChange(getNextType())
+    }
+  }
+
   return (
-    <div className="grid gap-8 max-w-2xl mx-auto">
-      <div className="space-y-6">
-        <div className="border border-primary rounded-xl overflow-hidden w-full">
-          <div className="bg-background p-6">
+    <div className="grid gap-4 sm:gap-8 w-full max-w-[320px] sm:max-w-2xl mx-auto overflow-hidden">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="border border-primary rounded-xl overflow-hidden w-full max-w-[320px] sm:max-w-full mx-auto">
+          <div className="bg-background p-2 sm:p-6">
             <Textarea
               ref={textareaRef}
               placeholder={t("textPlaceholder")}
-              className="min-h-[200px] resize-none border-0 focus:ring-0 p-0 shadow-none text-base bg-transparent"
+              className="min-h-[120px] sm:min-h-[200px] w-full resize-none border-0 focus:ring-0 p-0 shadow-none text-sm sm:text-base bg-transparent"
               value={text}
               onChange={handleTextChange}
             />
           </div>
 
-          <div className="border-t flex items-center justify-between px-4 py-2 bg-muted">
+          <div className="border-t flex flex-wrap items-center justify-between px-1 sm:px-4 py-1 sm:py-2 bg-muted">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 gap-1 text-muted-foreground hover:text-foreground">
-                  <Code className="h-4 w-4" />
-                  {selectedTemplateName}
+                <Button variant="ghost" size="sm" className="h-6 sm:h-8 text-xs sm:text-sm gap-1 text-muted-foreground hover:text-foreground">
+                  <Code className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="max-w-[60px] sm:max-w-full truncate">{selectedTemplateName}</span>
                   <ChevronDown className="h-3 w-3 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuContent align="start" className="w-48 sm:w-56">
                 {templates.map((template) => (
                   <DropdownMenuItem
                     key={template.id}
@@ -273,7 +302,7 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               {tokenCount !== null && (
                 <span className={`text-xs ${isGenerating ? 'text-primary animate-pulse' : 'text-muted-foreground'}`}>
                   {t("tokens")}: {tokenCount}
@@ -283,16 +312,16 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
                 onClick={generateContent}
                 disabled={!text.trim() || isGenerating || !selectedTemplateId}
                 size="sm"
-                className="h-8 px-3 rounded-full bg-primary hover:bg-primary/90"
+                className="h-6 sm:h-8 px-2 sm:px-3 rounded-full bg-primary hover:bg-primary/90 text-xs sm:text-sm"
               >
                 {isGenerating ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin mr-1" />
                     {t("generating")}
                   </>
                 ) : (
                   <>
-                    <ArrowRight className="h-4 w-4 mr-1" />
+                    <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                     {t("startConverting")}
                   </>
                 )}
@@ -301,27 +330,51 @@ export default function TextToImageConverter({ type, selectedTemplate }: TextToI
           </div>
         </div>
 
-        {error && <div className="p-3 bg-destructive/10 text-destructive rounded-md">{error}</div>}
+        {error && <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">{error}</div>}
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4 max-w-[320px] sm:max-w-full mx-auto w-full">
         <div>
-          <h2 className="text-2xl font-semibold mb-2">
-            {type === "cover" && "选择封面图模板"}
-            {type === "card" && "选择文字卡模板"}
-            {type === "diagram" && "选择逻辑图模板"}
-          </h2>
-          <p className="text-muted-foreground mb-4">
+          <div className="flex justify-between items-center mb-1 sm:mb-2">
+            <h2 className="text-lg sm:text-2xl font-semibold">
+              {type === "cover" && "选择封面图模板"}
+              {type === "card" && "选择文字卡模板"}
+              {type === "diagram" && "选择逻辑图模板"}
+            </h2>
+            {onTypeChange && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleTypeChange} 
+                className="text-xs sm:text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+              >
+                <span className="hidden sm:inline">
+                  {type === "cover" && "切换到文字卡"}
+                  {type === "card" && "切换到逻辑图"}
+                  {type === "diagram" && "切换到封面图"}
+                </span>
+                <span className="sm:hidden">
+                  {type === "cover" && "文字卡"}
+                  {type === "card" && "逻辑图"}
+                  {type === "diagram" && "封面图"}
+                </span>
+                <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
+              </Button>
+            )}
+          </div>
+          <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-4">
             {type === "cover" && "将文本精简化，适用于为长内容设计小红书、公众号封面"}
             {type === "card" && "将文章内容提炼成简洁的文字卡片，适合分享和传播"}
             {type === "diagram" && "将复杂逻辑可视化，帮助理解和记忆"}
           </p>
-          <TemplateCarousel type={type} selectedTemplate={selectedTemplateId} onSelectTemplate={handleTemplateSelect} />
-          <p className="text-xs text-muted-foreground text-center mt-4">鸣谢提示词创作者：向阳乔木、空格的键盘、橘子AI</p>
+          <div className="w-full max-w-[320px] sm:max-w-full mx-auto">
+            <TemplateCarousel type={type} selectedTemplate={selectedTemplateId} onSelectTemplate={handleTemplateSelect} />
+          </div>
+          <p className="text-xs text-muted-foreground text-center mt-2 sm:mt-4">鸣谢提示词创作者：向阳乔木、空格的键盘、橘子AI</p>
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold mb-4">{t("recentGenerations")}</h2>
+          <h2 className="text-base sm:text-xl font-semibold mb-2 sm:mb-4">{t("recentGenerations")}</h2>
           <RecentGenerations recentGenerations={recentGenerations} noRecentText={t("noRecentImages")} />
         </div>
       </div>

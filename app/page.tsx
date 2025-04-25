@@ -8,9 +8,15 @@ import TemplateCarousel from "@/components/template-carousel"
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"cover" | "card" | "diagram">("cover")
   const [selectedTemplate, setSelectedTemplate] = useState("")
+  const [sharedText, setSharedText] = useState("")
 
   const handleTemplateSelect = (templateId: string, templateName: string) => {
     setSelectedTemplate(templateId)
+  }
+
+  // 处理类型切换
+  const handleTypeChange = (newType: "cover" | "card" | "diagram") => {
+    setActiveTab(newType)
   }
 
   return (
@@ -22,7 +28,7 @@ export default function Home() {
         </p>
 
         <div className="w-full max-w-4xl">
-          <Tabs defaultValue="cover" onValueChange={(value) => setActiveTab(value as "cover" | "card" | "diagram")}>
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "cover" | "card" | "diagram")}>
             <div className="flex justify-center">
               <TabsList className="grid w-1/2 grid-cols-3">
                 <TabsTrigger value="cover">封面图</TabsTrigger>
@@ -31,13 +37,31 @@ export default function Home() {
               </TabsList>
             </div>
             <TabsContent value="cover">
-              <TextToImageConverter type="cover" selectedTemplate={selectedTemplate} />
+              <TextToImageConverter 
+                type="cover" 
+                selectedTemplate={selectedTemplate} 
+                sharedText={sharedText} 
+                setSharedText={setSharedText} 
+                onTypeChange={handleTypeChange}
+              />
             </TabsContent>
             <TabsContent value="card">
-              <TextToImageConverter type="card" selectedTemplate={selectedTemplate} />
+              <TextToImageConverter 
+                type="card" 
+                selectedTemplate={selectedTemplate} 
+                sharedText={sharedText} 
+                setSharedText={setSharedText} 
+                onTypeChange={handleTypeChange}
+              />
             </TabsContent>
             <TabsContent value="diagram">
-              <TextToImageConverter type="diagram" selectedTemplate={selectedTemplate} />
+              <TextToImageConverter 
+                type="diagram" 
+                selectedTemplate={selectedTemplate} 
+                sharedText={sharedText} 
+                setSharedText={setSharedText} 
+                onTypeChange={handleTypeChange}
+              />
             </TabsContent>
           </Tabs>
         </div>
