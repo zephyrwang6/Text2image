@@ -12,6 +12,7 @@ import { useLanguage } from "@/hooks/use-language"
 import { getTemplateById, getTemplatesByType } from "@/lib/templates"
 import { generateAIContent } from "@/lib/api"
 import { storeContent, generateUniqueId, getRecentContent } from "@/lib/storage"
+import { storeBlobContent, generateBlobId, getRecentBlobContents } from "@/lib/blob-storage"
 import { calculateTokens } from "@/lib/token-calculator"
 
 interface TextToImageConverterProps {
@@ -43,9 +44,28 @@ export default function TextToImageConverter({ type, selectedTemplate, sharedTex
 
   // 加载最近生成的内容
   useEffect(() => {
-    const recent = getRecentContent(8)
-    setRecentGenerations(recent)
-  }, [])
+    const loadRecentContents = async () => {
+      try {
+        // 尝试从Blob存储加载
+        const blobContents = await getRecentBlobContents(8);
+        if (blobContents && blobContents.length > 0) {
+          setRecentGenerations(blobContents);
+          return;
+        }
+        
+        // 回退到内存存储
+        const recent = getRecentContent(8);
+        setRecentGenerations(recent);
+      } catch (error) {
+        console.error("加载最近内容失败:", error);
+        // 回退到内存存储
+        const recent = getRecentContent(8);
+        setRecentGenerations(recent);
+      }
+    };
+    
+    loadRecentContents();
+  }, []);
 
   // 设置默认模板
   useEffect(() => {
@@ -194,18 +214,33 @@ export default function TextToImageConverter({ type, selectedTemplate, sharedTex
         console.log("最终token计数:", currentTokenCount);
 
         // 生成唯一ID
-        const contentId = generateUniqueId();
+        const contentId = generateBlobId();
 
-        // 存储生成的内容
-        storeContent(contentId, completeContent, type, selectedTemplateId, selectedTemplateName, {
-          promptTokens: Math.floor(currentTokenCount * 0.3), // 估算值
-          completionTokens: Math.floor(currentTokenCount * 0.7), // 估算值
-          totalTokens: currentTokenCount
-        });
-
-        // 更新最近生成的内容
-        const recent = getRecentContent(8);
-        setRecentGenerations(recent);
+        // 存储生成的内容到Blob存储
+        try {
+          await storeBlobContent(contentId, completeContent, type, selectedTemplateId, selectedTemplateName, {
+            promptTokens: Math.floor(currentTokenCount * 0.3), // 估算值
+            completionTokens: Math.floor(currentTokenCount * 0.7), // 估算值
+            totalTokens: currentTokenCount
+          });
+          
+          // 更新最近生成的内容
+          const blobContents = await getRecentBlobContents(8);
+          setRecentGenerations(blobContents);
+        } catch (blobError) {
+          console.error("存储到Blob失败，回退到内存存储:", blobError);
+          
+          // 回退到内存存储
+          storeContent(contentId, completeContent, type, selectedTemplateId, selectedTemplateName, {
+            promptTokens: Math.floor(currentTokenCount * 0.3),
+            completionTokens: Math.floor(currentTokenCount * 0.7),
+            totalTokens: currentTokenCount
+          });
+          
+          // 更新最近生成的内容
+          const recent = getRecentContent(8);
+          setRecentGenerations(recent);
+        }
 
         // 将 isGenerating 设置为 false
         setIsGenerating(false);
@@ -226,14 +261,25 @@ export default function TextToImageConverter({ type, selectedTemplate, sharedTex
       }
 
       // 生成唯一ID
-      const contentId = generateUniqueId()
+      const contentId = generateBlobId();
 
-      // 存储生成的内容
-      storeContent(contentId, response.content, type, selectedTemplateId, selectedTemplateName, response.tokenUsage)
-
-      // 更新最近生成的内容
-      const recent = getRecentContent(8)
-      setRecentGenerations(recent)
+      // 尝试存储到Blob
+      try {
+        await storeBlobContent(contentId, response.content, type, selectedTemplateId, selectedTemplateName, response.tokenUsage);
+        
+        // 更新最近生成的内容
+        const blobContents = await getRecentBlobContents(8);
+        setRecentGenerations(blobContents);
+      } catch (blobError) {
+        console.error("存储到Blob失败，回退到内存存储:", blobError);
+        
+        // 回退到内存存储
+        storeContent(contentId, response.content, type, selectedTemplateId, selectedTemplateName, response.tokenUsage);
+        
+        // 更新最近生成的内容
+        const recent = getRecentContent(8);
+        setRecentGenerations(recent);
+      }
 
       // 将 isGenerating 设置为 false
       setIsGenerating(false)

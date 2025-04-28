@@ -7,6 +7,7 @@ import { Copy, Download, Share, ArrowLeft, Check } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/hooks/use-language"
 import { getContent, extractCodeContent } from "@/lib/storage"
+import { getBlobContent } from "@/lib/blob-storage"
 import ContentDisplay from "@/components/content-display"
 import Link from "next/link"
 import * as domtoimage from "dom-to-image"
@@ -17,6 +18,21 @@ declare module 'dom-to-image' {
   export function toPng(node: HTMLElement, options?: any): Promise<string>;
   export function toJpeg(node: HTMLElement, options?: any): Promise<string>;
   export function toSvg(node: HTMLElement, options?: any): Promise<string>;
+}
+
+// 格式化日期为"13:32 4/28"格式
+function formatDate(dateString: string) {
+  const date = new Date(dateString);
+  
+  // 获取小时和分钟，确保是两位数
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  
+  // 获取月份和日期
+  const month = date.getMonth() + 1; // 月份从0开始
+  const day = date.getDate();
+  
+  return `${hours}:${minutes} ${month}/${day}`;
 }
 
 export default function GeneratedContentPage() {
@@ -36,16 +52,39 @@ export default function GeneratedContentPage() {
   useEffect(() => {
     if (!params.id) return
 
-    const id = Array.isArray(params.id) ? params.id[0] : params.id
-    const contentData = getContent(id)
-
-    if (contentData) {
-      setContent(contentData)
-    } else {
-      setError("Content not found")
+    const fetchContent = async () => {
+      const id = Array.isArray(params.id) ? params.id[0] : params.id
+      
+      if (!id) {
+        setError("Invalid content ID")
+        setLoading(false)
+        return
+      }
+      
+      // 先尝试从Blob存储获取内容
+      try {
+        const blobContent = await getBlobContent(id)
+        if (blobContent) {
+          setContent(blobContent)
+          setLoading(false)
+          return
+        }
+      } catch (error) {
+        console.error("从Blob获取内容失败:", error)
+      }
+      
+      // 回退到内存存储
+      const contentData = getContent(id)
+      if (contentData) {
+        setContent(contentData)
+      } else {
+        setError("Content not found")
+      }
+      
+      setLoading(false)
     }
-
-    setLoading(false)
+    
+    fetchContent()
   }, [params.id])
 
   // 复制图片到剪贴板
@@ -295,6 +334,13 @@ export default function GeneratedContentPage() {
     }
   }
 
+  // 确保提取代码内容函数在这里也可以使用
+  const extractContentCode = (contentData: any) => {
+    if (!contentData || !contentData.content) return null
+    
+    return extractCodeContent(contentData.content, contentData.type)
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -414,7 +460,7 @@ export default function GeneratedContentPage() {
             
             <div className="text-xs sm:text-sm text-muted-foreground mb-2 px-2">
               <p>
-                {t("generatedAt")}: {new Date(content.createdAt).toLocaleString()}
+                {t("generatedAt")}: {formatDate(content.createdAt)}
               </p>
               <p>
                 {t("template")}: {content.templateName}

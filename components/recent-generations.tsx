@@ -10,6 +10,21 @@ interface RecentGenerationsProps {
   noRecentText: string
 }
 
+// 格式化日期为"13:32 4/28"格式
+function formatDate(dateString: string) {
+  const date = new Date(dateString);
+  
+  // 获取小时和分钟，确保是两位数
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  
+  // 获取月份和日期
+  const month = date.getMonth() + 1; // 月份从0开始
+  const day = date.getDate();
+  
+  return `${hours}:${minutes} ${month}/${day}`;
+}
+
 export default function RecentGenerations({ recentGenerations, noRecentText }: RecentGenerationsProps) {
   const router = useRouter()
 
@@ -29,7 +44,7 @@ export default function RecentGenerations({ recentGenerations, noRecentText }: R
                   <ContentDisplay content={item.content} type={item.type} />
                 </div>
                 <div className="mt-2 text-sm text-left text-muted-foreground truncate px-2 pb-2">
-                  {new Date(item.createdAt).toLocaleDateString()} - {item.templateName}
+                  {formatDate(item.createdAt)} - {item.templateName}
                 </div>
               </div>
             </div>
