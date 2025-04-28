@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/hooks/use-language"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { Toaster } from "@/hooks/use-toast"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -31,6 +32,7 @@ export default function RootLayout({
               <div className="flex-1">{children}</div>
               <Footer />
               <Toaster />
+              <SpeedInsights />
             </div>
           </LanguageProvider>
         </ThemeProvider>
