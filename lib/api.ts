@@ -32,6 +32,8 @@ export async function generateImage(data: GenerateImageRequest): Promise<Generat
 
 export async function generateAIContent(data: GenerateAIContentRequest): Promise<GenerateAIContentResponse> {
   try {
+    console.log("正在生成内容，使用模型:", data.modelId || "默认模型");
+    
     const response = await fetch("/api/generate-with-ai", {
       method: "POST",
       headers: {

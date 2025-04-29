@@ -53,7 +53,7 @@ export default function GeneratedContentPage() {
     if (!params.id) return
 
     const fetchContent = async () => {
-      const id = Array.isArray(params.id) ? params.id[0] : params.id
+    const id = Array.isArray(params.id) ? params.id[0] : params.id
       
       if (!id) {
         setError("Invalid content ID")
@@ -74,14 +74,14 @@ export default function GeneratedContentPage() {
       }
       
       // 回退到内存存储
-      const contentData = getContent(id)
-      if (contentData) {
-        setContent(contentData)
-      } else {
-        setError("Content not found")
-      }
-      
-      setLoading(false)
+    const contentData = getContent(id)
+    if (contentData) {
+      setContent(contentData)
+    } else {
+      setError("Content not found")
+    }
+
+    setLoading(false)
     }
     
     fetchContent()

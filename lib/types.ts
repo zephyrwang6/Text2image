@@ -12,6 +12,16 @@ export interface Template {
   previewImage?: string
 }
 
+// 模型选项
+export interface ModelOption {
+  id: string
+  name: string
+  apiUrl: string
+  modelId: string
+  apiKey?: string
+  isDefault?: boolean
+}
+
 // Generated content types
 export interface GeneratedContent {
   id: string
@@ -56,6 +66,7 @@ export interface GenerateAIContentRequest {
   templateId: string
   type: "cover" | "card" | "diagram"
   language: "zh" | "en"
+  modelId?: string // 使用的模型ID
 }
 
 export interface GenerateAIContentResponse {

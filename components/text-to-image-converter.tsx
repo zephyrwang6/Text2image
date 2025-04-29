@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { RefreshCw, ChevronDown, ArrowRight, Code, Loader2, ChevronRight } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { RefreshCw, ChevronDown, ArrowRight, Code, Loader2, ChevronRight, Sparkles } from "lucide-react"
 import TemplateCarousel from "@/components/template-carousel"
 import RecentGenerations from "@/components/recent-generations"
 import { useLanguage } from "@/hooks/use-language"
@@ -14,6 +15,8 @@ import { generateAIContent } from "@/lib/api"
 import { storeContent, generateUniqueId, getRecentContent } from "@/lib/storage"
 import { storeBlobContent, generateBlobId, getRecentBlobContents } from "@/lib/blob-storage"
 import { calculateTokens } from "@/lib/token-calculator"
+import { models, getDefaultModel, getModelById } from "@/lib/models"
+import { ModelOption } from "@/lib/types"
 
 interface TextToImageConverterProps {
   type: "cover" | "card" | "diagram"
@@ -32,6 +35,7 @@ export default function TextToImageConverter({ type, selectedTemplate, sharedTex
   const [error, setError] = useState<string | null>(null)
   const [recentGenerations, setRecentGenerations] = useState<any[]>([])
   const [tokenCount, setTokenCount] = useState<number | null>(null)
+  const [selectedModel, setSelectedModel] = useState<ModelOption>(getDefaultModel())
   const { language, t } = useLanguage()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -111,6 +115,13 @@ export default function TextToImageConverter({ type, selectedTemplate, sharedTex
     setSelectedTemplateName(templateName)
   }
 
+  const handleModelChange = (modelId: string) => {
+    const model = getModelById(modelId)
+    if (model) {
+      setSelectedModel(model)
+    }
+  }
+
   const generateContent = async () => {
     if (!text.trim() || !selectedTemplateId) return
 
@@ -131,6 +142,7 @@ export default function TextToImageConverter({ type, selectedTemplate, sharedTex
         templateId: selectedTemplateId,
         type,
         language,
+        modelId: selectedModel.id // 添加选中的模型ID
       })
 
       // 处理流式响应
@@ -325,28 +337,54 @@ export default function TextToImageConverter({ type, selectedTemplate, sharedTex
           </div>
 
           <div className="border-t flex flex-wrap items-center justify-between px-1 sm:px-4 py-1 sm:py-2 bg-muted">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-6 sm:h-8 text-xs sm:text-sm gap-1 text-muted-foreground hover:text-foreground">
-                  <Code className="h-3 w-3 sm:h-4 sm:w-4" />
-                  <span className="max-w-[60px] sm:max-w-full truncate">{selectedTemplateName}</span>
-                  <ChevronDown className="h-3 w-3 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48 sm:w-56">
-                {templates.map((template) => (
-                  <DropdownMenuItem
-                    key={template.id}
-                    onClick={() =>
-                      handleTemplateSelect(template.id, language === "zh" ? template.name : template.nameEn)
-                    }
-                    className={selectedTemplateId === template.id ? "bg-muted" : ""}
-                  >
-                    {language === "zh" ? template.name : template.nameEn}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-2 flex-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-6 sm:h-8 text-xs sm:text-sm gap-1 text-muted-foreground hover:text-foreground">
+                    <Code className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="max-w-[60px] sm:max-w-full truncate">{selectedTemplateName}</span>
+                    <ChevronDown className="h-3 w-3 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48 sm:w-56">
+                  {templates.map((template) => (
+                    <DropdownMenuItem
+                      key={template.id}
+                      onClick={() =>
+                        handleTemplateSelect(template.id, language === "zh" ? template.name : template.nameEn)
+                      }
+                      className={selectedTemplateId === template.id ? "bg-muted" : ""}
+                    >
+                      {language === "zh" ? template.name : template.nameEn}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              <Select
+                value={selectedModel.id}
+                onValueChange={handleModelChange}
+              >
+                <SelectTrigger 
+                  className="h-6 sm:h-8 text-xs sm:text-sm w-[180px] sm:w-[200px] border-0 bg-transparent focus:ring-0 text-muted-foreground"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    <span>{selectedModel.name}</span>
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {models.map((model) => (
+                    <SelectItem key={model.id} value={model.id}>
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-3.5 w-3.5 text-primary" />
+                        <span>{model.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="flex items-center gap-1 sm:gap-2">
               {tokenCount !== null && (

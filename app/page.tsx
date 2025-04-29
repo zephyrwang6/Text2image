@@ -24,7 +24,7 @@ export default function Home() {
       <div className="flex flex-col items-center justify-center">
         <h1 className="text-4xl font-bold text-primary mb-4">文图图</h1>
         <p className="text-lg text-muted-foreground text-center mb-6 max-w-2xl">
-          将文字转换为精美图片，支持封面图、文字卡和逻辑图等多种样式
+          将文字转换为精美卡片
         </p>
 
         <div className="w-full max-w-4xl">

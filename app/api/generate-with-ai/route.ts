@@ -2,10 +2,12 @@ export const runtime = 'edge';
 
 import { NextResponse } from "next/server"
 import { getTemplateById } from "@/lib/templates"
+import { getModelById, getDefaultModel } from "@/lib/models"
+import { ModelOption } from "@/lib/types"
 
 export async function POST(request: Request) {
   try {
-    const { text, templateId, type, language } = await request.json()
+    const { text, templateId, type, language, modelId } = await request.json()
     const useStream = true; // 设置为false可以切换到非流式响应模式
 
     // Validate input
@@ -24,10 +26,24 @@ export async function POST(request: Request) {
         { status: 404 }
       )
     }
-
+    
+    // 获取使用的模型
+    let model: ModelOption = getDefaultModel();
+    if (modelId) {
+      const selectedModel = getModelById(modelId);
+      if (selectedModel) {
+        model = selectedModel;
+      } else {
+        console.warn(`未找到ID为${modelId}的模型，使用默认模型`);
+      }
+    }
+    
+    // 根据模型选择API密钥
+    const apiKey = model.apiKey || process.env.DEEPSEEK_API_KEY;
+    
     // Validate API key
-    if (!process.env.DEEPSEEK_API_KEY) {
-      console.error("DeepSeek API key is not configured")
+    if (!apiKey) {
+      console.error("API key is not configured for model:", model.name)
       return NextResponse.json(
         { success: false, error: "API configuration error" },
         { status: 500 }
@@ -38,7 +54,9 @@ export async function POST(request: Request) {
     const prompt = language === "zh" ? template.promptZh : template.promptEn
 
     // Log the request
-    console.log("DeepSeek API Request:", {
+    console.log("API Request:", {
+      modelId: model.id,
+      modelName: model.name,
       templateId,
       type,
       language,
@@ -52,16 +70,16 @@ export async function POST(request: Request) {
       { role: "user", content: text },
     ]
 
-    // Call DeepSeek API
-    console.log("正在调用DeepSeek API...");
-    const response = await fetch("https://api.deepseek.com/chat/completions", {
+    // Call API based on selected model
+    console.log(`正在调用${model.name} API...`);
+    const response = await fetch(model.apiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: model.modelId,
         messages: messages,
         stream: useStream,
         // 添加最大tokens限制以控制生成长度
@@ -69,7 +87,7 @@ export async function POST(request: Request) {
       }),
     });
 
-    console.log("DeepSeek API 响应状态:", response.status);
+    console.log("API 响应状态:", response.status);
 
     if (!response.ok) {
       let errorMessage = `API 返回错误状态码: ${response.status}`;
@@ -77,7 +95,7 @@ export async function POST(request: Request) {
       
       try {
         errorData = await response.json();
-        console.error("DeepSeek API 错误详情:", errorData);
+        console.error("API 错误详情:", errorData);
         errorMessage = errorData.error || errorMessage;
       } catch (e) {
         console.error("无法解析 API 错误响应:", e);
@@ -95,7 +113,7 @@ export async function POST(request: Request) {
 
     // 检查响应的内容类型
     const contentType = response.headers.get('Content-Type');
-    console.log("DeepSeek API 响应内容类型:", contentType);
+    console.log("API 响应内容类型:", contentType);
 
     // 如果使用非流式响应
     if (!useStream) {
